@@ -8,7 +8,7 @@ source("R/01_helper_functions.R")
 
 ## For Charlottetown only (not PEI-wide)
 
-Charlottetown <-
+charlottetown <-
   get_census(dataset = "CA16", regions = list(CSD = "1102075"), level = "CSD",
              geo_format = "sf") %>% 
   st_transform(32620)
@@ -19,12 +19,12 @@ streets <-
   add_osm_feature(key = "highway") %>% 
   osmdata_sf()
 
-CRM_streets <- 
+charlottetown_streets <- 
   rbind(streets$osm_polygons %>% st_cast("LINESTRING"), streets$osm_lines) %>% 
   as_tibble() %>% 
   st_as_sf() %>% 
   st_transform(32620) %>%
-  st_intersection(Charlottetown) %>% 
+  st_intersection(charlottetown) %>% 
   select(osm_id, name, geometry)
 
 ### Census import ##############################################################
@@ -51,5 +51,64 @@ DAs_charlottetown <-
 
 ### [ OMITTED ] Import CMHC neighbourhoods #################################################
 
+con <- RPostgres::dbConnect(
+  RPostgres::Postgres(),
+  user = "rbbinder",
+  password = "csq4PvpZksy4tZdKW8fvsMoa",
+  host = "025wpgs.campus.mcgill.ca",
+  dbname = "airdna")
+
+property_all <- tbl(con, "property")
+
+daily_all <- tbl(con, "daily")
+
+property <- 
+  property_all %>% 
+  filter(country == "Canada", city == "Charlottetown") %>% 
+  collect()
+
+property <-  property %>% 
+  filter(!is.na(listing_type)) %>% 
+  select(property_ID:longitude, ab_property:ha_host, bedrooms) %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(32620)
+
+daily_compressed <- 
+  daily_all %>% 
+  filter(property_ID %in% !! property$property_ID) %>% 
+  collect()
+
+# Set up ML file at this point as some hosts may have properties in other cities
+
+ML_property <- 
+  property_all %>% 
+  filter(host_ID %in% !! property$host_ID) %>% 
+  collect()
+
+ML_daily <- 
+  daily_all %>% 
+  filter(property_ID %in% !! ML_property$property_ID) %>% 
+  collect()
+
+# # Atlantic Canada 
+# property_AC <- 
+#   property_all %>% filter(country == "Canada", 
+#                           region %in% c("Nova Scotia", "New Brunswick", 
+#                                         "Prince Edward Island", 
+#                                         "Newfoundland and Labrador")) %>% 
+#   collect()
+# 
+# property_AC <-  property_AC %>% 
+#   filter(!is.na(listing_type)) %>% 
+#   select(property_ID:longitude, ab_property:ha_host, bedrooms, city, region) %>% 
+#   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+#   st_transform(32617)
+# 
+# daily_AC <- 
+#   daily_all %>% 
+#   filter(property_ID %in% !! property_AC$property_ID) %>% 
+#   collect()
+# 
+# rm(con, daily_all, property_all)
 
 
