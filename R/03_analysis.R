@@ -7,7 +7,7 @@ load("data/charlottetown_LTM_property.Rdata")
 load("data/charlottetown_FREH.Rdata")
 load("data/charlottetown_GH.Rdata")
 load("data/charlottetown_daily.Rdata")
-load("data/HRM_daily_compressed.Rdata")
+load("data/charlottetown_daily_compressed.Rdata")
 # load("data/HRM_neighbourhoods.Rdata")
 load("data/DAs_charlottetown.Rdata")
 
@@ -302,35 +302,21 @@ sum(filter(housing_loss, date == end_date)$`Housing units`) /
 
 ## Relate housing loss to rental vacancy rate
 
-vacancy_rate <- 1.016 
+# vacancy_rate <- 1.016 
+# 
+# housing <- 
+#   get_census("CA16", regions = list(CSD = "1209034"), level = "CSD", 
+#              vectors = c("v_CA16_4897", "v_CA16_405"))
+# 
+# housing %>% 
+#   select(
+#     `v_CA16_405: Private dwellings occupied by usual residents`,
+# `v_CA16_4897: Total - Tenant households in non-farm, non-reserve private dwellings - 25% sample data`
+#          ) %>% 
+#   set_names(c("Dwellings", "Tenants")) %>% 
+#   pull(Tenants) %>% 
+#   {. * vacancy_rate * (vacancy_rate - 1)}
 
-housing <- 
-  get_census("CA16", regions = list(CSD = "1209034"), level = "CSD", 
-             vectors = c("v_CA16_4897", "v_CA16_405"))
-
-housing %>% 
-  select(
-    `v_CA16_405: Private dwellings occupied by usual residents`,
-`v_CA16_4897: Total - Tenant households in non-farm, non-reserve private dwellings - 25% sample data`
-         ) %>% 
-  set_names(c("Dwellings", "Tenants")) %>% 
-  pull(Tenants) %>% 
-  {. * vacancy_rate * (vacancy_rate - 1)}
-
-### Number of long reservations
-
-long_reservations <- 
-  daily_compressed %>% 
-  filter(status == "R") %>% 
-  filter(start_date >= created, end_date <= scraped + 30) %>% 
-  group_by(res_ID)
-
-res_length <- 
-  long_reservations %>% 
-  group_by(res_ID) %>% 
-  summarize(nights = max(end_date) - min(start_date) + 1)
-
-mean(res_length$nights >= 28)
 
 ### Listings likely in violation of principal residence requirement ############
 
@@ -420,369 +406,369 @@ mean(legal$ML, na.rm = TRUE)
 mean(legal$legal, na.rm = TRUE)
 
 # Legal by neighbourhood
-legal %>% 
-  group_by(neighbourhood) %>% 
-  summarize(non_PR = length(legal[legal == FALSE])) %>% 
-  st_drop_geometry() %>% 
-  left_join(neighbourhoods) %>% 
-  select(name, non_PR) %>% 
-  view()
+# legal %>% 
+#   group_by(neighbourhood) %>% 
+#   summarize(non_PR = length(legal[legal == FALSE])) %>% 
+#   st_drop_geometry() %>% 
+#   left_join(neighbourhoods) %>% 
+#   select(name, non_PR) %>% 
+#   view()
 
 ## Neighbourhood analysis ####################################
 
-airbnb_neighbourhoods <- tibble(neighbourhood = character(0), 
-                                active_listings = numeric(0), 
-                                active_listings_LTM = numeric(0), 
-                                EH_pct = numeric(0), 
-                                revenue_LTM = numeric(0),
-                                GH = numeric(0), 
-                                FREH = numeric(0),
-                                housing_loss = numeric(0), 
-                                revenue_10pct_LTM = numeric(0), 
-                                active_listings_yoy = numeric(0), 
-                                housing_loss_yoy = numeric(0))
-
-for (n in c(1:nrow(neighbourhoods))) {
-  
-  neighbourhood_property <- 
-    property %>% 
-    filter(housing == TRUE) %>% 
-    filter(neighbourhood == neighbourhoods$neighbourhood[n])
-  
-  neighbourhood_daily <- 
-    daily %>% 
-    filter(property_ID %in% neighbourhood_property$property_ID)
-  
-  airbnb_neighbourhoods[n,1] <- 
-    neighbourhoods$neighbourhood[n]
-  
-  airbnb_neighbourhoods[n,2] <- 
-    neighbourhood_property %>% 
-    filter(created <= end_date,
-           scraped >= end_date) %>% 
-    nrow()
-  
-  airbnb_neighbourhoods[n,3] <- 
-    neighbourhood_daily %>% 
-    filter(date <= end_date & date >= start_date) %>% 
-    group_by(date) %>% 
-    summarize(listings = n()) %>%
-    summarise(mean_listings = mean(listings))
-  
-  airbnb_neighbourhoods[n,4] <-   
-    nrow(neighbourhood_daily %>% 
-           filter(date == end_date) %>% 
-           filter(listing_type == "Entire home/apt")) / 
-    nrow(neighbourhood_daily %>% 
-           filter(date == end_date))
-  
-  airbnb_neighbourhoods[n,5] <-   
-    neighbourhood_daily %>% 
-    filter(date <= end_date & date >= start_date & status == "R") %>%
-    summarize(sum_revenue = sum(price, na.rm = TRUE) * exchange_rate)
-  
-  airbnb_neighbourhoods[n,6] <- 
-    ifelse(neighbourhood_daily %>% 
-             filter(date == end_date) %>% 
-             inner_join(GH, .) %>% nrow() == 0,
-           0,
-           neighbourhood_daily %>% 
-             filter(date == end_date) %>% 
-             inner_join(GH, .) %>% 
-             select(ghost_ID, housing_units) %>% 
-             st_drop_geometry() %>% 
-             distinct() %>% 
-             select(housing_units) %>% 
-             sum())
-  
-  airbnb_neighbourhoods[n,7] <- 
-    nrow(neighbourhood_daily %>% 
-           filter(date == end_date) %>% 
-           inner_join(FREH, .))
-
-  airbnb_neighbourhoods[n,8] <-
-    airbnb_neighbourhoods[n,6] + airbnb_neighbourhoods[n,7]
-  
-  airbnb_neighbourhoods[n,9] <- 
-    neighbourhood_daily %>%
-    filter(date >= start_date, date <= end_date, status == "R") %>%
-    group_by(host_ID) %>%
-    summarize(rev = sum(price) * exchange_rate) %>%
-    filter(rev > 0) %>%
-    summarize(`Top 10%` = sum(rev[rev > quantile(rev, c(0.90))] / sum(rev)))
-  
-  airbnb_neighbourhoods[n,10] <- 
-    neighbourhood_property %>% 
-    filter(created <= end_date, scraped >= end_date) %>% 
-    nrow() / 
-    neighbourhood_property %>% 
-    filter(created <= date_yoy, scraped >= date_yoy) %>% 
-    nrow()
-  
-  airbnb_neighbourhoods[n,11] <- 
-    airbnb_neighbourhoods[n, 8] / 
-    (ifelse(neighbourhood_daily %>% 
-              filter(date == date_yoy) %>% 
-              inner_join(GH, .) %>% nrow() == 0,
-            0,
-            neighbourhood_daily %>% 
-              filter(date == date_yoy) %>% 
-              inner_join(GH, .) %>% 
-              select(ghost_ID, housing_units) %>% 
-              st_drop_geometry() %>% 
-              distinct() %>% 
-              select(housing_units) %>% 
-              sum()) +
-      nrow(neighbourhood_daily %>% 
-             filter(date == end_date) %>% 
-             inner_join(FREH, .)))
-    
-  rm(neighbourhood_property, neighbourhood_daily)
-}
-
-# Add census variables, names, and geometries
-
-airbnb_neighbourhoods <- airbnb_neighbourhoods %>% 
-  left_join(neighbourhoods) %>% 
-  st_as_sf()
-
-# Add housing loss as percentage of dwellings
-
-airbnb_neighbourhoods <- airbnb_neighbourhoods %>% 
-  mutate(housing_loss_pct = housing_loss/households,
-         active_listings_pct = active_listings/households)
-
-## Neighbourhood primary residences
-legal %>% 
-  filter(legal == FALSE) %>% 
-  group_by(neighbourhood) %>% 
-  summarize(housing_returned = n()) %>% 
-  st_drop_geometry() %>% 
-  left_join(neighbourhoods) %>% 
-  select(name, housing_returned, households) %>% 
-  mutate(housing_returned_pct = housing_returned/households) %>% 
-  view()
-
-# Top ten active listings
-airbnb_neighbourhoods %>% 
-  arrange(desc(active_listings)) %>% 
-  slice(1:10) %>% 
-  select(name, active_listings)
-
-# Active listings/dwelling
-airbnb_neighbourhoods %>% 
-  arrange(desc(active_listings_pct)) %>% 
-  slice(1:10) %>% 
-  select(name, active_listings_pct)
-
-# Active listings YOY growth rate
-airbnb_neighbourhoods %>% 
-  filter(active_listings >= 50) %>% 
-  arrange(desc(active_listings_yoy)) %>% 
-  slice(1:10) %>% 
-  select(name, active_listings_yoy)
-
-# Revenue_LTM
-airbnb_neighbourhoods %>% 
-  arrange(desc(revenue_LTM)) %>% 
-  slice(1:10) %>% 
-  select(name, revenue_LTM)
-
-# Housing loss
-airbnb_neighbourhoods %>% 
-  arrange(desc(housing_loss)) %>% 
-  slice(1:10) %>% 
-  select(name, housing_loss)
-
-# Housing loss/dwelling
-airbnb_neighbourhoods %>% 
-  arrange(desc(housing_loss_pct)) %>% 
-  slice(1:10) %>% 
-  select(name, housing_loss_pct)
-
-# Housing loss YOY growth rate
-airbnb_neighbourhoods %>% 
-  filter(active_listings >=50) %>% 
-  arrange(desc(housing_loss_yoy)) %>% 
-  slice(1:10) %>% 
-  select(name, housing_loss_yoy)
-
-# Non - principal residences / active listings
-airbnb_neighbourhoods <- legal %>% 
-group_by(neighbourhood) %>% 
-  summarize(non_PR = length(legal[legal == FALSE])) %>% 
-  st_drop_geometry() %>% 
-  left_join(airbnb_neighbourhoods) 
-
-airbnb_neighbourhoods <- airbnb_neighbourhoods %>% 
-  mutate(non_PR_pct_listings = non_PR/active_listings) 
-
-airbnb_neighbourhoods <- legal %>% 
-  filter(legal == FALSE) %>% 
-  group_by(neighbourhood) %>% 
-  summarize(housing_returned = n()) %>% 
-  st_drop_geometry() %>% 
-  left_join(airbnb_neighbourhoods) %>% 
-  mutate(housing_returned_pct = housing_returned/households) 
-
-# Neighbourhood table with all
-airbnb_neighbourhoods %>% 
-  arrange(desc(active_listings)) %>% 
-  slice(1:10) %>% 
-  select(name, active_listings, active_listings_pct, active_listings_yoy,
-         revenue_LTM, housing_loss, housing_loss_pct, housing_loss_yoy, non_PR, 
-         non_PR_pct_listings, housing_returned, housing_returned_pct) %>% 
-  view()
-
-## Urban/rural comparison ########################
-areas <- c("halifax", "dartmouth", "other_urban", "rural")
-
-halifax <- c("H_1","H_2", "H_3", "H_4", "H_11", "H_6", "H_5",
-             "H_8", "H_9", "H_10", "H_12", "H_7")
-dartmouth <- c("D_5", "D_4", "D_3", "D_6", "D_1","D_7",
-               "D_2")
-other_urban <- c("B_1","C_15", "C_18", "C_21", "C_16",
-                 "C_22", "C_20", "C_17", "C_14")
-
-property <- property %>% 
-  mutate(halifax = neighbourhood%in%halifax,
-         dartmouth = neighbourhood%in%dartmouth,
-         other_urban = neighbourhood%in%other_urban)
-
-property <- property %>% 
-  mutate(urban_rural = ifelse(halifax == TRUE, "halifax",
-                              ifelse(dartmouth == TRUE, "dartmouth",
-                                     ifelse(other_urban == TRUE, "other_urban", 
-                                            "rural"))))
-neighbourhoods <- neighbourhoods %>% 
-  mutate(halifax = neighbourhood%in%halifax,
-         dartmouth = neighbourhood%in%dartmouth,
-         other_urban = neighbourhood%in%other_urban)
-
-neighbourhoods <- neighbourhoods %>% 
-  mutate(urban_rural = ifelse(halifax == TRUE, "halifax",
-                              ifelse(dartmouth == TRUE, "dartmouth",
-                                     ifelse(other_urban == TRUE, "other_urban", 
-                                            "rural"))))
-
-
-urban_rural <- tibble(area = character(0), active_listings = numeric(0), 
-                                active_listings_LTM = numeric (0), EH_pct = numeric (0), 
-                                revenue_LTM = numeric (0), 
-                                GH = numeric (0), FREH = numeric (0),  housing_loss = numeric (0), 
-                                revenue_10pct_LTM = numeric (0), active_listings_yoy = numeric(0),
-                                housing_loss_yoy = numeric (0), households = numeric (0))
-
-for (n in c(1:length(areas))) {
-  
-  urban_rural_property <- property %>% 
-    filter(housing == TRUE) %>% 
-    filter(urban_rural == areas[n])
-  
-  urban_rural_daily <- daily %>% 
-    filter(property_ID %in% urban_rural_property$property_ID)
-  
-  urban_rural[n,1] <- areas[n]
-  
-  urban_rural[n,2] <- urban_rural_property %>% 
-    filter(created <= end_date,
-           scraped >= end_date) %>% 
-    nrow()
-  
- urban_rural[n,3] <- urban_rural_daily %>% 
-    filter(date <= end_date & date >= start_date) %>% 
-    group_by(date) %>% 
-    summarize(listings = n()) %>%
-    summarise(mean_listings = mean(listings))
-  
-  urban_rural[n,4] <-   nrow(urban_rural_daily %>% 
-                                         filter(date == end_date) %>% 
-                                         filter(listing_type == "Entire home/apt"))/
-    nrow(urban_rural_daily %>% 
-           filter(date == end_date))
-  
-  urban_rural[n,5] <-   urban_rural_daily %>% 
-    filter(date <= end_date & date >= start_date &
-             status == "R" ) %>%
-    summarise(sum_revenue = sum(price, na.rm = TRUE)*exchange_rate)
-  
-  urban_rural[n,6] <-       ifelse(urban_rural_daily %>% 
-                                               filter(date == end_date) %>% 
-                                               inner_join(GH, .) %>% nrow() == 0,
-                                             0,
-                                             urban_rural_daily %>% 
-                                               filter(date == end_date) %>% 
-                                               inner_join(GH, .) %>% 
-                                               select(ghost_ID, housing_units) %>% 
-                                               st_drop_geometry() %>% 
-                                               distinct() %>% 
-                                               select(housing_units) %>% 
-                                               sum())
-  
-  urban_rural[n,7] <-     nrow(urban_rural_daily %>% 
-                                           filter(date == end_date) %>% 
-                                           inner_join(FREH, .))
-  
-  urban_rural[n,8] <-  urban_rural[n,6] +  urban_rural[n,7]
-  
-  urban_rural[n,9] <- urban_rural_daily %>%
-    filter(date >= start_date, date <= end_date, status == "R") %>%
-    group_by(host_ID) %>%
-    summarize(rev = sum(price) * exchange_rate) %>%
-    filter(rev > 0) %>%
-    summarize(
-      `Top 10%` = sum(rev[rev > quantile(rev, c(0.90))] / sum(rev)))
-  
-  
- urban_rural[n,10] <- urban_rural_property %>% 
-    filter(created <= end_date,
-           scraped >= end_date) %>% 
-    nrow() / 
-    urban_rural_property %>% 
-    filter(created <= date_yoy,
-           scraped >= date_yoy) %>% 
-    nrow()
-  
-  urban_rural[n,11] <- urban_rural[n, 8] /
-    (ifelse(urban_rural_daily %>% 
-              filter(date == date_yoy) %>% 
-              inner_join(GH, .) %>% nrow() == 0,
-            0,
-           urban_rural_daily %>% 
-              filter(date == date_yoy) %>% 
-              inner_join(GH, .) %>% 
-              select(ghost_ID, housing_units) %>% 
-              st_drop_geometry() %>% 
-              distinct() %>% 
-              select(housing_units) %>% 
-              sum()) +
-       nrow(urban_rural_daily %>% 
-              filter(date == date_yoy) %>% 
-              inner_join(FREH, .)))
-  
-  urban_rural[n, 12] <- neighbourhoods %>%
-    filter(urban_rural == areas[n]) %>% 
-    select(households) %>% 
-    st_drop_geometry() %>% 
-    sum()
-}
-
-rm(urban_rural_daily, urban_rural_property)
-
-urban_rural <- urban_rural %>% 
-  mutate(active_listings_pct = active_listings/households,
-         housing_loss_pct = housing_loss/households) %>% 
-  select(-c(active_listings_LTM, EH_pct, GH, FREH, revenue_10pct_LTM, households))
+# airbnb_neighbourhoods <- tibble(neighbourhood = character(0), 
+#                                 active_listings = numeric(0), 
+#                                 active_listings_LTM = numeric(0), 
+#                                 EH_pct = numeric(0), 
+#                                 revenue_LTM = numeric(0),
+#                                 GH = numeric(0), 
+#                                 FREH = numeric(0),
+#                                 housing_loss = numeric(0), 
+#                                 revenue_10pct_LTM = numeric(0), 
+#                                 active_listings_yoy = numeric(0), 
+#                                 housing_loss_yoy = numeric(0))
+# 
+# for (n in c(1:nrow(neighbourhoods))) {
+#   
+#   neighbourhood_property <- 
+#     property %>% 
+#     filter(housing == TRUE) %>% 
+#     filter(neighbourhood == neighbourhoods$neighbourhood[n])
+#   
+#   neighbourhood_daily <- 
+#     daily %>% 
+#     filter(property_ID %in% neighbourhood_property$property_ID)
+#   
+#   airbnb_neighbourhoods[n,1] <- 
+#     neighbourhoods$neighbourhood[n]
+#   
+#   airbnb_neighbourhoods[n,2] <- 
+#     neighbourhood_property %>% 
+#     filter(created <= end_date,
+#            scraped >= end_date) %>% 
+#     nrow()
+#   
+#   airbnb_neighbourhoods[n,3] <- 
+#     neighbourhood_daily %>% 
+#     filter(date <= end_date & date >= start_date) %>% 
+#     group_by(date) %>% 
+#     summarize(listings = n()) %>%
+#     summarise(mean_listings = mean(listings))
+#   
+#   airbnb_neighbourhoods[n,4] <-   
+#     nrow(neighbourhood_daily %>% 
+#            filter(date == end_date) %>% 
+#            filter(listing_type == "Entire home/apt")) / 
+#     nrow(neighbourhood_daily %>% 
+#            filter(date == end_date))
+#   
+#   airbnb_neighbourhoods[n,5] <-   
+#     neighbourhood_daily %>% 
+#     filter(date <= end_date & date >= start_date & status == "R") %>%
+#     summarize(sum_revenue = sum(price, na.rm = TRUE) * exchange_rate)
+#   
+#   airbnb_neighbourhoods[n,6] <- 
+#     ifelse(neighbourhood_daily %>% 
+#              filter(date == end_date) %>% 
+#              inner_join(GH, .) %>% nrow() == 0,
+#            0,
+#            neighbourhood_daily %>% 
+#              filter(date == end_date) %>% 
+#              inner_join(GH, .) %>% 
+#              select(ghost_ID, housing_units) %>% 
+#              st_drop_geometry() %>% 
+#              distinct() %>% 
+#              select(housing_units) %>% 
+#              sum())
+#   
+#   airbnb_neighbourhoods[n,7] <- 
+#     nrow(neighbourhood_daily %>% 
+#            filter(date == end_date) %>% 
+#            inner_join(FREH, .))
+# 
+#   airbnb_neighbourhoods[n,8] <-
+#     airbnb_neighbourhoods[n,6] + airbnb_neighbourhoods[n,7]
+#   
+#   airbnb_neighbourhoods[n,9] <- 
+#     neighbourhood_daily %>%
+#     filter(date >= start_date, date <= end_date, status == "R") %>%
+#     group_by(host_ID) %>%
+#     summarize(rev = sum(price) * exchange_rate) %>%
+#     filter(rev > 0) %>%
+#     summarize(`Top 10%` = sum(rev[rev > quantile(rev, c(0.90))] / sum(rev)))
+#   
+#   airbnb_neighbourhoods[n,10] <- 
+#     neighbourhood_property %>% 
+#     filter(created <= end_date, scraped >= end_date) %>% 
+#     nrow() / 
+#     neighbourhood_property %>% 
+#     filter(created <= date_yoy, scraped >= date_yoy) %>% 
+#     nrow()
+#   
+#   airbnb_neighbourhoods[n,11] <- 
+#     airbnb_neighbourhoods[n, 8] / 
+#     (ifelse(neighbourhood_daily %>% 
+#               filter(date == date_yoy) %>% 
+#               inner_join(GH, .) %>% nrow() == 0,
+#             0,
+#             neighbourhood_daily %>% 
+#               filter(date == date_yoy) %>% 
+#               inner_join(GH, .) %>% 
+#               select(ghost_ID, housing_units) %>% 
+#               st_drop_geometry() %>% 
+#               distinct() %>% 
+#               select(housing_units) %>% 
+#               sum()) +
+#       nrow(neighbourhood_daily %>% 
+#              filter(date == end_date) %>% 
+#              inner_join(FREH, .)))
+#     
+#   rm(neighbourhood_property, neighbourhood_daily)
+# }
+# 
+# # Add census variables, names, and geometries
+# 
+# airbnb_neighbourhoods <- airbnb_neighbourhoods %>% 
+#   left_join(neighbourhoods) %>% 
+#   st_as_sf()
+# 
+# # Add housing loss as percentage of dwellings
+# 
+# airbnb_neighbourhoods <- airbnb_neighbourhoods %>% 
+#   mutate(housing_loss_pct = housing_loss/households,
+#          active_listings_pct = active_listings/households)
+# 
+# ## Neighbourhood primary residences
+# legal %>% 
+#   filter(legal == FALSE) %>% 
+#   group_by(neighbourhood) %>% 
+#   summarize(housing_returned = n()) %>% 
+#   st_drop_geometry() %>% 
+#   left_join(neighbourhoods) %>% 
+#   select(name, housing_returned, households) %>% 
+#   mutate(housing_returned_pct = housing_returned/households) %>% 
+#   view()
+# 
+# # Top ten active listings
+# airbnb_neighbourhoods %>% 
+#   arrange(desc(active_listings)) %>% 
+#   slice(1:10) %>% 
+#   select(name, active_listings)
+# 
+# # Active listings/dwelling
+# airbnb_neighbourhoods %>% 
+#   arrange(desc(active_listings_pct)) %>% 
+#   slice(1:10) %>% 
+#   select(name, active_listings_pct)
+# 
+# # Active listings YOY growth rate
+# airbnb_neighbourhoods %>% 
+#   filter(active_listings >= 50) %>% 
+#   arrange(desc(active_listings_yoy)) %>% 
+#   slice(1:10) %>% 
+#   select(name, active_listings_yoy)
+# 
+# # Revenue_LTM
+# airbnb_neighbourhoods %>% 
+#   arrange(desc(revenue_LTM)) %>% 
+#   slice(1:10) %>% 
+#   select(name, revenue_LTM)
+# 
+# # Housing loss
+# airbnb_neighbourhoods %>% 
+#   arrange(desc(housing_loss)) %>% 
+#   slice(1:10) %>% 
+#   select(name, housing_loss)
+# 
+# # Housing loss/dwelling
+# airbnb_neighbourhoods %>% 
+#   arrange(desc(housing_loss_pct)) %>% 
+#   slice(1:10) %>% 
+#   select(name, housing_loss_pct)
+# 
+# # Housing loss YOY growth rate
+# airbnb_neighbourhoods %>% 
+#   filter(active_listings >=50) %>% 
+#   arrange(desc(housing_loss_yoy)) %>% 
+#   slice(1:10) %>% 
+#   select(name, housing_loss_yoy)
+# 
+# # Non - principal residences / active listings
+# airbnb_neighbourhoods <- legal %>% 
+# group_by(neighbourhood) %>% 
+#   summarize(non_PR = length(legal[legal == FALSE])) %>% 
+#   st_drop_geometry() %>% 
+#   left_join(airbnb_neighbourhoods) 
+# 
+# airbnb_neighbourhoods <- airbnb_neighbourhoods %>% 
+#   mutate(non_PR_pct_listings = non_PR/active_listings) 
+# 
+# airbnb_neighbourhoods <- legal %>% 
+#   filter(legal == FALSE) %>% 
+#   group_by(neighbourhood) %>% 
+#   summarize(housing_returned = n()) %>% 
+#   st_drop_geometry() %>% 
+#   left_join(airbnb_neighbourhoods) %>% 
+#   mutate(housing_returned_pct = housing_returned/households) 
+# 
+# # Neighbourhood table with all
+# airbnb_neighbourhoods %>% 
+#   arrange(desc(active_listings)) %>% 
+#   slice(1:10) %>% 
+#   select(name, active_listings, active_listings_pct, active_listings_yoy,
+#          revenue_LTM, housing_loss, housing_loss_pct, housing_loss_yoy, non_PR, 
+#          non_PR_pct_listings, housing_returned, housing_returned_pct) %>% 
+#   view()
+# 
+# ## Urban/rural comparison ########################
+# areas <- c("halifax", "dartmouth", "other_urban", "rural")
+# 
+# halifax <- c("H_1","H_2", "H_3", "H_4", "H_11", "H_6", "H_5",
+#              "H_8", "H_9", "H_10", "H_12", "H_7")
+# dartmouth <- c("D_5", "D_4", "D_3", "D_6", "D_1","D_7",
+#                "D_2")
+# other_urban <- c("B_1","C_15", "C_18", "C_21", "C_16",
+#                  "C_22", "C_20", "C_17", "C_14")
+# 
+# property <- property %>% 
+#   mutate(halifax = neighbourhood%in%halifax,
+#          dartmouth = neighbourhood%in%dartmouth,
+#          other_urban = neighbourhood%in%other_urban)
+# 
+# property <- property %>% 
+#   mutate(urban_rural = ifelse(halifax == TRUE, "halifax",
+#                               ifelse(dartmouth == TRUE, "dartmouth",
+#                                      ifelse(other_urban == TRUE, "other_urban", 
+#                                             "rural"))))
+# neighbourhoods <- neighbourhoods %>% 
+#   mutate(halifax = neighbourhood%in%halifax,
+#          dartmouth = neighbourhood%in%dartmouth,
+#          other_urban = neighbourhood%in%other_urban)
+# 
+# neighbourhoods <- neighbourhoods %>% 
+#   mutate(urban_rural = ifelse(halifax == TRUE, "halifax",
+#                               ifelse(dartmouth == TRUE, "dartmouth",
+#                                      ifelse(other_urban == TRUE, "other_urban", 
+#                                             "rural"))))
+# 
+# 
+# urban_rural <- tibble(area = character(0), active_listings = numeric(0), 
+#                                 active_listings_LTM = numeric (0), EH_pct = numeric (0), 
+#                                 revenue_LTM = numeric (0), 
+#                                 GH = numeric (0), FREH = numeric (0),  housing_loss = numeric (0), 
+#                                 revenue_10pct_LTM = numeric (0), active_listings_yoy = numeric(0),
+#                                 housing_loss_yoy = numeric (0), households = numeric (0))
+# 
+# for (n in c(1:length(areas))) {
+#   
+#   urban_rural_property <- property %>% 
+#     filter(housing == TRUE) %>% 
+#     filter(urban_rural == areas[n])
+#   
+#   urban_rural_daily <- daily %>% 
+#     filter(property_ID %in% urban_rural_property$property_ID)
+#   
+#   urban_rural[n,1] <- areas[n]
+#   
+#   urban_rural[n,2] <- urban_rural_property %>% 
+#     filter(created <= end_date,
+#            scraped >= end_date) %>% 
+#     nrow()
+#   
+#  urban_rural[n,3] <- urban_rural_daily %>% 
+#     filter(date <= end_date & date >= start_date) %>% 
+#     group_by(date) %>% 
+#     summarize(listings = n()) %>%
+#     summarise(mean_listings = mean(listings))
+#   
+#   urban_rural[n,4] <-   nrow(urban_rural_daily %>% 
+#                                          filter(date == end_date) %>% 
+#                                          filter(listing_type == "Entire home/apt"))/
+#     nrow(urban_rural_daily %>% 
+#            filter(date == end_date))
+#   
+#   urban_rural[n,5] <-   urban_rural_daily %>% 
+#     filter(date <= end_date & date >= start_date &
+#              status == "R" ) %>%
+#     summarise(sum_revenue = sum(price, na.rm = TRUE)*exchange_rate)
+#   
+#   urban_rural[n,6] <-       ifelse(urban_rural_daily %>% 
+#                                                filter(date == end_date) %>% 
+#                                                inner_join(GH, .) %>% nrow() == 0,
+#                                              0,
+#                                              urban_rural_daily %>% 
+#                                                filter(date == end_date) %>% 
+#                                                inner_join(GH, .) %>% 
+#                                                select(ghost_ID, housing_units) %>% 
+#                                                st_drop_geometry() %>% 
+#                                                distinct() %>% 
+#                                                select(housing_units) %>% 
+#                                                sum())
+#   
+#   urban_rural[n,7] <-     nrow(urban_rural_daily %>% 
+#                                            filter(date == end_date) %>% 
+#                                            inner_join(FREH, .))
+#   
+#   urban_rural[n,8] <-  urban_rural[n,6] +  urban_rural[n,7]
+#   
+#   urban_rural[n,9] <- urban_rural_daily %>%
+#     filter(date >= start_date, date <= end_date, status == "R") %>%
+#     group_by(host_ID) %>%
+#     summarize(rev = sum(price) * exchange_rate) %>%
+#     filter(rev > 0) %>%
+#     summarize(
+#       `Top 10%` = sum(rev[rev > quantile(rev, c(0.90))] / sum(rev)))
+#   
+#   
+#  urban_rural[n,10] <- urban_rural_property %>% 
+#     filter(created <= end_date,
+#            scraped >= end_date) %>% 
+#     nrow() / 
+#     urban_rural_property %>% 
+#     filter(created <= date_yoy,
+#            scraped >= date_yoy) %>% 
+#     nrow()
+#   
+#   urban_rural[n,11] <- urban_rural[n, 8] /
+#     (ifelse(urban_rural_daily %>% 
+#               filter(date == date_yoy) %>% 
+#               inner_join(GH, .) %>% nrow() == 0,
+#             0,
+#            urban_rural_daily %>% 
+#               filter(date == date_yoy) %>% 
+#               inner_join(GH, .) %>% 
+#               select(ghost_ID, housing_units) %>% 
+#               st_drop_geometry() %>% 
+#               distinct() %>% 
+#               select(housing_units) %>% 
+#               sum()) +
+#        nrow(urban_rural_daily %>% 
+#               filter(date == date_yoy) %>% 
+#               inner_join(FREH, .)))
+#   
+#   urban_rural[n, 12] <- neighbourhoods %>%
+#     filter(urban_rural == areas[n]) %>% 
+#     select(households) %>% 
+#     st_drop_geometry() %>% 
+#     sum()
+# }
+# 
+# rm(urban_rural_daily, urban_rural_property)
+# 
+# urban_rural <- urban_rural %>% 
+#   mutate(active_listings_pct = active_listings/households,
+#          housing_loss_pct = housing_loss/households) %>% 
+#   select(-c(active_listings_LTM, EH_pct, GH, FREH, revenue_10pct_LTM, households))
 
 
 ## Save files #####################################
 save(active_listings_filtered, file = "data/active_listings_filtered.Rdata")
-save(property, file = "data/HRM_property.Rdata")
-save(housing_loss, file = "data/housing_loss.Rdata")
-save(airbnb_neighbourhoods, file = "data/airbnb_neighbourhoods.Rdata")
+save(property, file = "data/charlottetown_property.Rdata")
+#save(housing_loss, file = "data/housing_loss.Rdata")
+#save(airbnb_neighbourhoods, file = "data/airbnb_neighbourhoods.Rdata")
 save(legal, file = "data/legal.Rdata")
-save(urban_rural, file = "data/urban_rural.Rdata")
-save(neighbourhoods, file = "data/neighbourhoods.Rdata")
+#save(urban_rural, file = "data/urban_rural.Rdata")
+#save(neighbourhoods, file = "data/neighbourhoods.Rdata")
 
 
 
@@ -791,168 +777,167 @@ save(neighbourhoods, file = "data/neighbourhoods.Rdata")
 
 ### Reimplementation of FREH/GH ################################################
 
-GH_nbhd <- 
-  GH %>% 
-  group_by(ghost_ID) %>% 
-  slice(1) %>%
-  ungroup() %>% 
-  st_centroid() %>% 
-  st_intersection(neighbourhoods) %>% 
-  st_drop_geometry() %>% 
-  select(ghost_ID, neighbourhood = name) %>% 
-  arrange(ghost_ID)
-
-GH_CT <- 
-  GH %>% 
-  group_by(ghost_ID) %>% 
-  slice(1) %>%
-  ungroup() %>% 
-  st_centroid() %>% 
-  st_intersection(CTs_halifax) %>% 
-  st_drop_geometry() %>% 
-  select(ghost_ID, CT = Geo_UID) %>% 
-  arrange(ghost_ID)
-
-GH <- 
-  GH %>% left_join(GH_nbhd) %>% left_join(GH_CT)
-
-## Add current housing loss figures
-
-airbnb_neighbourhoods <-
-  GH %>% 
-  st_drop_geometry() %>% 
-  filter(date >= "2019-08-01") %>% 
-  select(-host_ID, -property_IDs, -data) %>% 
-  group_by(date, neighbourhood) %>% 
-  summarize(GH = sum(housing_units)) %>% 
-  group_by(neighbourhood) %>% 
-  summarize(GH = round(mean(GH, na.rm = TRUE))) %>% 
-  left_join(airbnb_neighbourhoods, ., by = c("name" = "neighbourhood")) %>% 
-  mutate(GH.x = if_else(is.na(GH.y), 0, GH.y)) %>% 
-  rename(GH = GH.x) %>% 
-  select(-GH.y)
-
-airbnb_neighbourhoods <- 
-  FREH %>% 
-  filter(date == "2019-08-31") %>% 
-  left_join(select(st_drop_geometry(property), property_ID, neighbourhood)) %>% 
-  count(neighbourhood) %>% 
-  left_join(airbnb_neighbourhoods, .) %>% 
-  mutate(FREH = n,
-         housing_loss = GH + FREH,
-         housing_loss_pct = housing_loss / households) %>% 
-  select(-n)
-
-## Add year-ago housing loss figures
-
-airbnb_neighbourhoods <-
-  GH %>% 
-  st_drop_geometry() %>% 
-  filter(date >= "2018-08-01", date <= "2018-08-31") %>% 
-  select(-host_ID, -property_IDs, -data) %>% 
-  group_by(date, neighbourhood) %>% 
-  summarize(GH_2018 = sum(housing_units)) %>% 
-  group_by(neighbourhood) %>% 
-  summarize(GH_2018 = round(mean(GH_2018, na.rm = TRUE))) %>% 
-  left_join(airbnb_neighbourhoods, ., by = c("name" = "neighbourhood")) %>% 
-  mutate(GH_2018 = replace_na(GH_2018, 0))
-
-airbnb_neighbourhoods <-
-  FREH %>% 
-  filter(date == "2018-08-31") %>% 
-  left_join(select(st_drop_geometry(property), property_ID, neighbourhood)) %>% 
-  count(neighbourhood) %>% 
-  left_join(airbnb_neighbourhoods, .) %>% 
-  mutate(FREH_2018 = replace_na(n, 0),
-         housing_loss_2018 = GH_2018 + FREH_2018,
-         housing_loss_yoy = housing_loss / housing_loss_2018) %>% 
-  select(-n)
-
-
-### Do vacancy rate analyses for CMHC neighbourhoods ###########################
-
-property <- 
-  st_intersection(property, select(CMHC, zone))
-
-GH_CMHC <- 
-  GH %>% 
-  group_by(ghost_ID) %>% 
-  slice(1) %>%
-  ungroup() %>% 
-  st_centroid() %>% 
-  st_intersection(CMHC) %>% 
-  st_drop_geometry() %>% 
-  select(ghost_ID, zone = zone) %>% 
-  arrange(ghost_ID)
-
-GH <- 
-  GH %>% left_join(GH_CMHC)
-
-CMHC <-
-  GH %>% 
-  st_drop_geometry() %>% 
-  filter(date >= "2019-08-01") %>% 
-  select(-host_ID, -property_IDs, -data) %>% 
-  group_by(date, zone) %>% 
-  summarize(GH = sum(housing_units)) %>% 
-  group_by(zone) %>% 
-  summarize(GH = round(mean(GH, na.rm = TRUE))) %>% 
-  left_join(CMHC, ., by = "zone") %>% 
-  mutate(GH = replace_na(GH, 0)) %>% 
-  select(zone:condo_units, GH, geometry)
-
-CMHC <-
-  FREH %>% 
-  filter(date == "2019-08-31") %>% 
-  left_join(select(st_drop_geometry(property), property_ID, zone)) %>% 
-  count(zone) %>% 
-  left_join(CMHC, .) %>% 
-  mutate(FREH = n,
-         housing_loss = GH + FREH,
-         new_vacancy = (housing_loss * 0.8 + rental_vacancy * rental_units) / 
-           rental_units) %>% 
-  select(zone:condo_units, new_vacancy, GH, FREH, housing_loss, geometry)
-
-CMHC_tidy <-
-  CMHC %>% 
-  select(zone, rental_vacancy, new_vacancy, geometry) %>% 
-  pivot_longer(cols = c(rental_vacancy, new_vacancy))
-
-
-## Percentage of housing-loss listings which are condos
-
-FREH %>% 
-  filter(date == "2019-08-31",
-         property_ID %in% (property %>% 
-                             filter(housing == TRUE,
-                                    str_detect(property_type, "condo|Condo") |
-                                      str_detect(listing_title, "condo|Condo"))
-                           )$property_ID)
-
-GH %>% filter(date == "2019-08-31") %>% 
-  pull(property_IDs) %>% 
-  unlist() %>% 
-  unique() %>% 
-  {. %in% (property %>% 
-             filter(housing == TRUE,
-                    str_detect(property_type, "condo|Condo") |
-                      str_detect(listing_title, "condo|Condo"))
-  )$property_ID} %>% sum()
-
-
-CMHC %>% 
-  st_drop_geometry %>% 
-  summarize(total_vacancy = sum(rental_units * rental_vacancy))
-
-
-
-### Neighbourhood summary table ################################################
-
-airbnb_neighbourhoods %>% 
-  st_drop_geometry %>% 
-  arrange(name) %>% 
-  mutate(listings_per_1000 = 1000 * active_listings / households,
-         housing_loss_yoy = housing_loss / housing_loss_2018) %>% 
-  select(name, active_listings, active_listings_yoy, listings_per_1000,
-         housing_loss, housing_loss_yoy) %>% 
-  write_csv("nbhd.csv")
+# GH_nbhd <- 
+#   GH %>% 
+#   group_by(ghost_ID) %>% 
+#   slice(1) %>%
+#   ungroup() %>% 
+#   st_centroid() %>% 
+#   st_intersection(neighbourhoods) %>% 
+#   st_drop_geometry() %>% 
+#   select(ghost_ID, neighbourhood = name) %>% 
+#   arrange(ghost_ID)
+# 
+# GH_CT <- 
+#   GH %>% 
+#   group_by(ghost_ID) %>% 
+#   slice(1) %>%
+#   ungroup() %>% 
+#   st_centroid() %>% 
+#   st_intersection(CTs_halifax) %>% 
+#   st_drop_geometry() %>% 
+#   select(ghost_ID, CT = Geo_UID) %>% 
+#   arrange(ghost_ID)
+# 
+# GH <- 
+#   GH %>% left_join(GH_nbhd) %>% left_join(GH_CT)
+# 
+# ## Add current housing loss figures
+# 
+# airbnb_neighbourhoods <-
+#   GH %>% 
+#   st_drop_geometry() %>% 
+#   filter(date >= "2019-08-01") %>% 
+#   select(-host_ID, -property_IDs, -data) %>% 
+#   group_by(date, neighbourhood) %>% 
+#   summarize(GH = sum(housing_units)) %>% 
+#   group_by(neighbourhood) %>% 
+#   summarize(GH = round(mean(GH, na.rm = TRUE))) %>% 
+#   left_join(airbnb_neighbourhoods, ., by = c("name" = "neighbourhood")) %>% 
+#   mutate(GH.x = if_else(is.na(GH.y), 0, GH.y)) %>% 
+#   rename(GH = GH.x) %>% 
+#   select(-GH.y)
+# 
+# airbnb_neighbourhoods <- 
+#   FREH %>% 
+#   filter(date == "2019-08-31") %>% 
+#   left_join(select(st_drop_geometry(property), property_ID, neighbourhood)) %>% 
+#   count(neighbourhood) %>% 
+#   left_join(airbnb_neighbourhoods, .) %>% 
+#   mutate(FREH = n,
+#          housing_loss = GH + FREH,
+#          housing_loss_pct = housing_loss / households) %>% 
+#   select(-n)
+# 
+# ## Add year-ago housing loss figures
+# 
+# airbnb_neighbourhoods <-
+#   GH %>% 
+#   st_drop_geometry() %>% 
+#   filter(date >= "2018-08-01", date <= "2018-08-31") %>% 
+#   select(-host_ID, -property_IDs, -data) %>% 
+#   group_by(date, neighbourhood) %>% 
+#   summarize(GH_2018 = sum(housing_units)) %>% 
+#   group_by(neighbourhood) %>% 
+#   summarize(GH_2018 = round(mean(GH_2018, na.rm = TRUE))) %>% 
+#   left_join(airbnb_neighbourhoods, ., by = c("name" = "neighbourhood")) %>% 
+#   mutate(GH_2018 = replace_na(GH_2018, 0))
+# 
+# airbnb_neighbourhoods <-
+#   FREH %>% 
+#   filter(date == "2018-08-31") %>% 
+#   left_join(select(st_drop_geometry(property), property_ID, neighbourhood)) %>% 
+#   count(neighbourhood) %>% 
+#   left_join(airbnb_neighbourhoods, .) %>% 
+#   mutate(FREH_2018 = replace_na(n, 0),
+#          housing_loss_2018 = GH_2018 + FREH_2018,
+#          housing_loss_yoy = housing_loss / housing_loss_2018) %>% 
+#   select(-n)
+# 
+# 
+# ### Do vacancy rate analyses for CMHC neighbourhoods ###########################
+# 
+# property <- 
+#   st_intersection(property, select(CMHC, zone))
+# 
+# GH_CMHC <- 
+#   GH %>% 
+#   group_by(ghost_ID) %>% 
+#   slice(1) %>%
+#   ungroup() %>% 
+#   st_centroid() %>% 
+#   st_intersection(CMHC) %>% 
+#   st_drop_geometry() %>% 
+#   select(ghost_ID, zone = zone) %>% 
+#   arrange(ghost_ID)
+# 
+# GH <- 
+#   GH %>% left_join(GH_CMHC)
+# 
+# CMHC <-
+#   GH %>% 
+#   st_drop_geometry() %>% 
+#   filter(date >= "2019-08-01") %>% 
+#   select(-host_ID, -property_IDs, -data) %>% 
+#   group_by(date, zone) %>% 
+#   summarize(GH = sum(housing_units)) %>% 
+#   group_by(zone) %>% 
+#   summarize(GH = round(mean(GH, na.rm = TRUE))) %>% 
+#   left_join(CMHC, ., by = "zone") %>% 
+#   mutate(GH = replace_na(GH, 0)) %>% 
+#   select(zone:condo_units, GH, geometry)
+# 
+# CMHC <-
+#   FREH %>% 
+#   filter(date == "2019-08-31") %>% 
+#   left_join(select(st_drop_geometry(property), property_ID, zone)) %>% 
+#   count(zone) %>% 
+#   left_join(CMHC, .) %>% 
+#   mutate(FREH = n,
+#          housing_loss = GH + FREH,
+#          new_vacancy = (housing_loss * 0.8 + rental_vacancy * rental_units) / 
+#            rental_units) %>% 
+#   select(zone:condo_units, new_vacancy, GH, FREH, housing_loss, geometry)
+# 
+# CMHC_tidy <-
+#   CMHC %>% 
+#   select(zone, rental_vacancy, new_vacancy, geometry) %>% 
+#   pivot_longer(cols = c(rental_vacancy, new_vacancy))
+# 
+# 
+# ## Percentage of housing-loss listings which are condos
+# 
+# FREH %>% 
+#   filter(date == "2019-08-31",
+#          property_ID %in% (property %>% 
+#                              filter(housing == TRUE,
+#                                     str_detect(property_type, "condo|Condo") |
+#                                       str_detect(listing_title, "condo|Condo"))
+#                            )$property_ID)
+# 
+# GH %>% filter(date == "2019-08-31") %>% 
+#   pull(property_IDs) %>% 
+#   unlist() %>% 
+#   unique() %>% 
+#   {. %in% (property %>% 
+#              filter(housing == TRUE,
+#                     str_detect(property_type, "condo|Condo") |
+#                       str_detect(listing_title, "condo|Condo"))
+#   )$property_ID} %>% sum()
+# 
+# 
+# CMHC %>% 
+#   st_drop_geometry %>% 
+#   summarize(total_vacancy = sum(rental_units * rental_vacancy))
+# 
+# 
+# ### Neighbourhood summary table ################################################
+# 
+# airbnb_neighbourhoods %>% 
+#   st_drop_geometry %>% 
+#   arrange(name) %>% 
+#   mutate(listings_per_1000 = 1000 * active_listings / households,
+#          housing_loss_yoy = housing_loss / housing_loss_2018) %>% 
+#   select(name, active_listings, active_listings_yoy, listings_per_1000,
+#          housing_loss, housing_loss_yoy) %>% 
+#   write_csv("nbhd.csv")
