@@ -85,14 +85,14 @@ property <-  property %>%
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
   st_transform(32620)
 
-property <- 
-  property %>% 
-  select(-zone) %>% 
-  st_intersection(CMHC) %>% 
-  st_drop_geometry() %>% 
-  select(property_ID, zone) %>% 
-  left_join(select(property, -zone), .) %>% 
-  mutate(zone = if_else(is.na(zone), "Rest of PEI", zone))
+# property <- 
+#   property %>% 
+#   select(-zone) %>% 
+#   st_intersection(CMHC) %>% 
+#   st_drop_geometry() %>% 
+#   select(property_ID, zone) %>% 
+#   left_join(select(property, -zone), .) %>% 
+#   mutate(zone = if_else(is.na(zone), "Rest of PEI", zone))
 
 daily_compressed <- 
   daily_all %>% 
@@ -136,21 +136,21 @@ start_date <- "2018-10-31"
 end_date <- "2019-10-30"
 
 daily <- 
-  strr_expand(daily_compressed, cores = 2) #changed from 4 cores
+  strr_expand(daily_compressed, cores = 3) #changed from 4 cores
 
 daily <- 
   daily %>% 
   filter(date >= created, date - 30 <= scraped, status != "U")
 
-daily <- 
-  property %>% 
-  st_drop_geometry() %>% 
-  select(property_ID, zone) %>% 
-  left_join(select(daily, -zone), .)
+# daily <- 
+#   property %>% 
+#   st_drop_geometry() %>% 
+#   select(property_ID, zone) %>% 
+#   left_join(select(daily, -zone), .)
 
 
 # daily_AC <- 
-#   strr_expand(daily_AC, cores = 2) #changed from 4 cores
+#   strr_expand(daily_AC, cores = 3) #changed from 4 cores
 # 
 # daily_AC <- 
 #   daily_AC %>% 
@@ -201,7 +201,7 @@ LTM_property <-
 ## Prepare ML_daily
 
 ML_daily <- 
-  strr_expand(ML_daily, cores = 2) #changed from 4 cores
+  strr_expand(ML_daily, cores = 3) #changed from 4 cores
 
 ML_daily <- 
   ML_daily %>% 
@@ -245,7 +245,7 @@ daily <-
 
 FREH <- 
   daily %>% 
-  strr_FREH("2015-09-30", end_date, cores = 2) %>% as_tibble() %>%   
+  strr_FREH("2015-09-30", end_date, cores = 3) %>% as_tibble() %>%   
   filter(FREH == TRUE) %>% 
   select(-FREH)
 
