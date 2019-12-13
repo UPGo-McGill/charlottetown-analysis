@@ -66,7 +66,7 @@ DAs_charlottetown <-
 con <- RPostgres::dbConnect(
   RPostgres::Postgres(),
   user = "rbbinder",
-  password = "csq4PvpZksy4tZdKW8fvsMoa",
+  password = "",
   host = "025wpgs.campus.mcgill.ca",
   dbname = "airdna")
 
