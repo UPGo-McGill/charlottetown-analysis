@@ -36,7 +36,7 @@ property_in_charlottetown <-
 
 property_2016 <- 
   daily %>% 
-  filter(status == "R", date >= "2015-09-01", date <= "2016-08-31") %>% 
+  filter(status == "R", date >= "2015-11-01", date <= "2016-10-31") %>% 
   group_by(property_ID) %>% 
   summarize(revenue = sum(price) * exchange_rate) %>% 
   left_join(filter(property_in_charlottetown, housing == TRUE), .) %>% 
@@ -45,7 +45,7 @@ property_2016 <-
 
 property_2017 <- 
   daily %>% 
-  filter(status == "R", date >= "2016-09-01", date <= "2017-08-31") %>% 
+  filter(status == "R", date >= "2016-11-01", date <= "2017-10-31") %>% 
   group_by(property_ID) %>% 
   summarize(revenue = sum(price) * exchange_rate) %>% 
   left_join(filter(property_in_charlottetown, housing == TRUE), .) %>% 
@@ -54,7 +54,7 @@ property_2017 <-
 
 property_2018 <- 
   daily %>% 
-  filter(status == "R", date >= "2017-09-01", date <= "2018-08-31") %>% 
+  filter(status == "R", date >= "2017-11-01", date <= "2018-10-31") %>% 
   group_by(property_ID) %>% 
   summarize(revenue = sum(price) * exchange_rate) %>% 
   left_join(filter(property_in_charlottetown, housing == TRUE), .) %>% 
