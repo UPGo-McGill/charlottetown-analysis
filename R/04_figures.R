@@ -66,14 +66,14 @@ property_2019 <-
   filter(status == "R", date >= start_date, date <= end_date) %>% 
   group_by(property_ID) %>% 
   summarize(revenue = sum(price) * exchange_rate) %>% 
-  left_join(filter(property_in_HRM, housing == TRUE), .) %>% 
+  left_join(filter(property_in_charlottetown, housing == TRUE), .) %>% 
   mutate(Year = "2019") %>% 
   filter(revenue > 0)
 
 map <- 
   rbind(property_2016, property_2017, property_2018, property_2019) %>%
   ggplot() +
-  geom_sf(data = HRM_streets, colour = alpha("grey", 0.3), lwd = 0.2) +
+  geom_sf(data = charlottetown_streets, colour = alpha("grey", 0.3), lwd = 0.2) +
   geom_sf(aes(size = revenue, colour = listing_type), stroke = 0, alpha = 0.4, 
           show.legend = "point") +
   facet_wrap(vars(Year), nrow = 2) +
@@ -128,192 +128,192 @@ ggsave("output/figure_2.pdf", plot = active_listings_graph, width = 8,
 
 ### FIGURE 3 - neighbourhoods ##################################################
 
-names <- read_csv("data/names.csv")
-
-neighbourhoods <- 
-  neighbourhoods %>% 
-  select(-name) %>% 
-  left_join(names) %>% 
-  mutate(urban_rural = case_when(
-    urban_rural == "dartmouth" ~ "Dartmouth",
-    urban_rural == "halifax" ~ "Halifax",
-    urban_rural == "other_urban" ~ "Suburban",
-    urban_rural == "rural" ~ "Rural",
-    TRUE ~ urban_rural
-  ))
-
-main_neighbourhood_map <-
-  ggplot(st_simplify(neighbourhoods, dTolerance = 10)) +
-  geom_sf(aes(fill = urban_rural), lwd = 0.2, colour = "white") +
-  geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[1]],
-            ymin = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[2]],
-            xmax = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[3]],
-            ymax = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[4]],
-            fill = NA, colour = "black", size = 1) +
-  ggrepel::geom_text_repel(
-    aes(x = st_centroid(geometry) %>% st_coordinates() %>% `[`(,1),
-        y = st_centroid(geometry) %>% st_coordinates() %>% `[`(,2),
-        label = name, family = "Futura", size = 1.5),
-    data = neighbourhoods %>% 
-      filter(!urban_rural %in% c("Dartmouth", "Halifax")),
-    nudge_x = c(-12000, 0,     0,     0,     0, 
-                20000,  0,     -5000, 25000, 25000,
-                -20000, 0,     10000, 0,     -10000,
-                -10000, 35000, 10000, 10000, -10000,
-                0,      20000, 20000, 12000, 0, 
-                20000),
-    nudge_y = c(0,      -5000, 0,     0,     0,
-                0,      22000, 15000, 15000, 30000, 
-                0,      0,     -8000, 15000, 0, 
-                0,      0,     0,     5000,  -10000,
-                -10000, 0,     -6000, 0,     0,
-                5000),
-    size = 2, segment.size = 0.2) +
-  scale_fill_manual(name = "Sub-area", 
-                    values = c("#9DBF9E", "#A84268", "#FCB97D", "#4A6C6F")) +
-  theme(legend.justification = c(0, 1),
-        legend.position = c(0, 1),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        rect = element_blank(),
-        text = element_text(family = "Futura", face = "plain"),
-        legend.title = element_text(family = "Futura", face = "bold", 
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10))
-
-
-subset <- 
-  neighbourhoods %>% filter(urban_rural %in% c("Dartmouth", "Halifax"))
-
-inset_neighbourhood_map <-
-  subset %>% 
-  st_simplify(dTolerance = 10) %>% 
-  ggplot() +
-  # geom_sf(data = CMHC, fill = "grey90", lwd = 0, colour = "transparent") +
-  geom_sf(aes(fill = urban_rural), lwd = 0.2, colour = "white",
-          data = neighbourhoods) +
-  geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[1]],
-            ymin = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[2]],
-            xmax = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[3]],
-            ymax = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[4]],
-            fill = NA, colour = "black", size = 1) +
-  ggrepel::geom_text_repel(
-    aes(x = st_centroid(geometry) %>% st_coordinates() %>% `[`(,1),
-        y = st_centroid(geometry) %>% st_coordinates() %>% `[`(,2),
-        label = name),
-    nudge_x = c(0,    0,    0,    -6000, 0, 
-                0,    0,    2000, 0,     0, 
-                0,    2000, 0,    -3000, -3000, 
-                0,    3000, 0,    0),
-    nudge_y = c(0,    0,    0,    0,     0, 
-                1500, 0,    0,    -2000, 0, 
-                0,    0,    0,    0,     2000, 
-                0,    0,    0,    0),
-    min.segment.length = 0.2,
-    family = "Futura", size = 1.5, segment.size = 0.2) +
-  scale_fill_manual(name = "Sub-area", 
-                    values = c("#9DBF9E", "#A84268", "#FCB97D", "#4A6C6F")) +
-  theme(legend.position = "none",
-        rect = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        text = element_text(family = "Futura", face = "plain")) +
-  gg_bbox(subset, expand = FALSE)
-
-  
-neighbourhood_map <- 
-  ggdraw(clip = "on") +
-  draw_plot(main_neighbourhood_map) +
-  draw_plot(inset_neighbourhood_map,
-    x = 0.62, 
-    y = 0,
-    width = 0.42, 
-    height = 0.42)
-
-ggsave("output/figure_3.pdf", plot = neighbourhood_map, width = 8, height = 6, 
-       units = "in", useDingbats = FALSE)
+# names <- read_csv("data/names.csv")
+# 
+# neighbourhoods <- 
+#   neighbourhoods %>% 
+#   select(-name) %>% 
+#   left_join(names) %>% 
+#   mutate(urban_rural = case_when(
+#     urban_rural == "dartmouth" ~ "Dartmouth",
+#     urban_rural == "halifax" ~ "Halifax",
+#     urban_rural == "other_urban" ~ "Suburban",
+#     urban_rural == "rural" ~ "Rural",
+#     TRUE ~ urban_rural
+#   ))
+# 
+# main_neighbourhood_map <-
+#   ggplot(st_simplify(neighbourhoods, dTolerance = 10)) +
+#   geom_sf(aes(fill = urban_rural), lwd = 0.2, colour = "white") +
+#   geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[1]],
+#             ymin = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[2]],
+#             xmax = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[3]],
+#             ymax = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[4]],
+#             fill = NA, colour = "black", size = 1) +
+#   ggrepel::geom_text_repel(
+#     aes(x = st_centroid(geometry) %>% st_coordinates() %>% `[`(,1),
+#         y = st_centroid(geometry) %>% st_coordinates() %>% `[`(,2),
+#         label = name, family = "Futura", size = 1.5),
+#     data = neighbourhoods %>% 
+#       filter(!urban_rural %in% c("Dartmouth", "Halifax")),
+#     nudge_x = c(-12000, 0,     0,     0,     0, 
+#                 20000,  0,     -5000, 25000, 25000,
+#                 -20000, 0,     10000, 0,     -10000,
+#                 -10000, 35000, 10000, 10000, -10000,
+#                 0,      20000, 20000, 12000, 0, 
+#                 20000),
+#     nudge_y = c(0,      -5000, 0,     0,     0,
+#                 0,      22000, 15000, 15000, 30000, 
+#                 0,      0,     -8000, 15000, 0, 
+#                 0,      0,     0,     5000,  -10000,
+#                 -10000, 0,     -6000, 0,     0,
+#                 5000),
+#     size = 2, segment.size = 0.2) +
+#   scale_fill_manual(name = "Sub-area", 
+#                     values = c("#9DBF9E", "#A84268", "#FCB97D", "#4A6C6F")) +
+#   theme(legend.justification = c(0, 1),
+#         legend.position = c(0, 1),
+#         axis.ticks = element_blank(),
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_blank(),
+#         axis.text.x = element_blank(),
+#         axis.text.y = element_blank(),
+#         rect = element_blank(),
+#         text = element_text(family = "Futura", face = "plain"),
+#         legend.title = element_text(family = "Futura", face = "bold", 
+#                                     size = 10),
+#         legend.text = element_text(family = "Futura", size = 10))
+# 
+# 
+# subset <- 
+#   neighbourhoods %>% filter(urban_rural %in% c("Dartmouth", "Halifax"))
+# 
+# inset_neighbourhood_map <-
+#   subset %>% 
+#   st_simplify(dTolerance = 10) %>% 
+#   ggplot() +
+#   # geom_sf(data = CMHC, fill = "grey90", lwd = 0, colour = "transparent") +
+#   geom_sf(aes(fill = urban_rural), lwd = 0.2, colour = "white",
+#           data = neighbourhoods) +
+#   geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[1]],
+#             ymin = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[2]],
+#             xmax = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[3]],
+#             ymax = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[4]],
+#             fill = NA, colour = "black", size = 1) +
+#   ggrepel::geom_text_repel(
+#     aes(x = st_centroid(geometry) %>% st_coordinates() %>% `[`(,1),
+#         y = st_centroid(geometry) %>% st_coordinates() %>% `[`(,2),
+#         label = name),
+#     nudge_x = c(0,    0,    0,    -6000, 0, 
+#                 0,    0,    2000, 0,     0, 
+#                 0,    2000, 0,    -3000, -3000, 
+#                 0,    3000, 0,    0),
+#     nudge_y = c(0,    0,    0,    0,     0, 
+#                 1500, 0,    0,    -2000, 0, 
+#                 0,    0,    0,    0,     2000, 
+#                 0,    0,    0,    0),
+#     min.segment.length = 0.2,
+#     family = "Futura", size = 1.5, segment.size = 0.2) +
+#   scale_fill_manual(name = "Sub-area", 
+#                     values = c("#9DBF9E", "#A84268", "#FCB97D", "#4A6C6F")) +
+#   theme(legend.position = "none",
+#         rect = element_blank(),
+#         axis.ticks = element_blank(),
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_blank(),
+#         axis.text.x = element_blank(),
+#         axis.text.y = element_blank(),
+#         text = element_text(family = "Futura", face = "plain")) +
+#   gg_bbox(subset, expand = FALSE)
+# 
+#   
+# neighbourhood_map <- 
+#   ggdraw(clip = "on") +
+#   draw_plot(main_neighbourhood_map) +
+#   draw_plot(inset_neighbourhood_map,
+#     x = 0.62, 
+#     y = 0,
+#     width = 0.42, 
+#     height = 0.42)
+# 
+# ggsave("output/figure_3.pdf", plot = neighbourhood_map, width = 8, height = 6, 
+#        units = "in", useDingbats = FALSE)
   
 
 
 ### FIGURE 4 - Nova Scotia map #################################################
 
-main_nova_scotia <-
-  DA_NS %>% 
-  st_simplify(preserveTopology = TRUE, dTolerance = 5) %>% 
-  ggplot() +
-  geom_sf(aes(fill = n / Dwellings), lwd = 0, colour = "white") +
-  geom_rect(
-    xmin = st_bbox(filter(neighbourhoods, 
-                          urban_rural %in% c("halifax", "dartmouth")))[[1]],
-    ymin = st_bbox(filter(neighbourhoods,
-                          urban_rural %in% c("halifax", "dartmouth")))[[2]],
-    xmax = st_bbox(filter(neighbourhoods,
-                          urban_rural %in% c("halifax", "dartmouth")))[[3]],
-    ymax = st_bbox(filter(neighbourhoods, 
-                          urban_rural %in% c("halifax", "dartmouth")))[[4]],
-            fill = NA, colour = "black", size = 0.6) +
-  scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
-                       na.value = "grey80",
-                       limits = c(0, 0.1),
-                       oob = scales::squish,
-                       labels = scales::percent) +
-  coord_sf(expand = FALSE) +
-  guides(fill = guide_colorbar(
-    title = "Active STRs as share of total dwellings")) +
-  theme(axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.background = element_blank(),
-        panel.border = element_blank(),
-        legend.justification = c(0, 1),
-        legend.position = c(0, .95),
-        text = element_text(family = "Futura", face = "plain"),
-        legend.title = element_text(family = "Futura", face = "bold", 
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10))
-
-nova_scotia_map <- 
-  ggdraw(clip = "on") +
-  draw_plot(main_nova_scotia) +
-  draw_plot(
-    {main_nova_scotia + 
-        gg_bbox(filter(neighbourhoods, 
-                       urban_rural %in% c("halifax", "dartmouth")),
-                expand = FALSE) +
-        theme(legend.position = "none")},
-    x = 0.58, 
-    y = 0,
-    width = 0.46, 
-    height = 0.46)
-
-ggsave("output/figure_4.pdf", plot = nova_scotia_map, width = 8,
-       height = 6.5, units = "in", useDingbats = FALSE)
-
+# main_nova_scotia <-
+#   DA_NS %>% 
+#   st_simplify(preserveTopology = TRUE, dTolerance = 5) %>% 
+#   ggplot() +
+#   geom_sf(aes(fill = n / Dwellings), lwd = 0, colour = "white") +
+#   geom_rect(
+#     xmin = st_bbox(filter(neighbourhoods, 
+#                           urban_rural %in% c("halifax", "dartmouth")))[[1]],
+#     ymin = st_bbox(filter(neighbourhoods,
+#                           urban_rural %in% c("halifax", "dartmouth")))[[2]],
+#     xmax = st_bbox(filter(neighbourhoods,
+#                           urban_rural %in% c("halifax", "dartmouth")))[[3]],
+#     ymax = st_bbox(filter(neighbourhoods, 
+#                           urban_rural %in% c("halifax", "dartmouth")))[[4]],
+#             fill = NA, colour = "black", size = 0.6) +
+#   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
+#                        na.value = "grey80",
+#                        limits = c(0, 0.1),
+#                        oob = scales::squish,
+#                        labels = scales::percent) +
+#   coord_sf(expand = FALSE) +
+#   guides(fill = guide_colorbar(
+#     title = "Active STRs as share of total dwellings")) +
+#   theme(axis.line = element_blank(),
+#         axis.text.x = element_blank(),
+#         axis.text.y = element_blank(),
+#         axis.ticks = element_blank(),
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_blank(),
+#         panel.background = element_blank(),
+#         panel.border = element_blank(),
+#         legend.justification = c(0, 1),
+#         legend.position = c(0, .95),
+#         text = element_text(family = "Futura", face = "plain"),
+#         legend.title = element_text(family = "Futura", face = "bold", 
+#                                     size = 10),
+#         legend.text = element_text(family = "Futura", size = 10))
+# 
+# nova_scotia_map <- 
+#   ggdraw(clip = "on") +
+#   draw_plot(main_nova_scotia) +
+#   draw_plot(
+#     {main_nova_scotia + 
+#         gg_bbox(filter(neighbourhoods, 
+#                        urban_rural %in% c("halifax", "dartmouth")),
+#                 expand = FALSE) +
+#         theme(legend.position = "none")},
+#     x = 0.58, 
+#     y = 0,
+#     width = 0.46, 
+#     height = 0.46)
+# 
+# ggsave("output/figure_4.pdf", plot = nova_scotia_map, width = 8,
+#        height = 6.5, units = "in", useDingbats = FALSE)
+# 
 
 
 
