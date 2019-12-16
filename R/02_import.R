@@ -29,6 +29,27 @@ charlottetown_streets <-
 
 ### Census import ##############################################################
 
+DA_PEI <-
+  get_census(
+    dataset = "CA16", regions = list(PR = "11"), level = "DA",
+    vectors = c("v_CA16_2398", "v_CA16_5078", "v_CA16_4888", "v_CA16_6695",
+                "v_CA16_4837", "v_CA16_4838", "v_CA16_512", 
+                "v_CA16_3393", "v_CA16_3996"),
+    geo_format = "sf") %>% 
+  st_transform(32620) %>% 
+  select(GeoUID, CSD_UID, Population, Dwellings, contains("v_CA")) %>% 
+  set_names(c("Geo_UID", "CSD_UID", "population", "dwellings", "med_income", 
+              "university_education", "housing_need", "non_mover",
+              "owner_occupier", "rental", "official_language", "citizen",
+              "white", "geometry")) %>% 
+  mutate_at(
+    .vars = c("university_education", "non_mover", 
+              "official_language", "citizen", "white"),
+    .funs = list(`pct_pop` = ~{. / population})) %>% 
+  mutate_at(
+    .vars = c("housing_need", "owner_occupier", "rental"),
+    .funs = list(`pct_dwellings` = ~{. / dwellings}))
+
 DAs_charlottetown <-
   get_census(
     dataset = "CA16", regions = list(CSD = "1102075"), level = "DA",

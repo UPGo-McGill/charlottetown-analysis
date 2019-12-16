@@ -94,11 +94,12 @@ map <-
         axis.text.x = element_blank(),
         axis.text.y = element_blank(),
         rect = element_blank(),
-        text = element_text(family = "Futura", face = "plain"),
-        legend.title = element_text(family = "Futura", face = "bold", 
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10),
-        strip.text = element_text(family = "Futura", face = "bold", size = 12))
+        # text = element_text(family = "Futura", face = "plain"),
+        # legend.title = element_text(family = "Futura", face = "bold", 
+        #                             size = 10),
+        # legend.text = element_text(family = "Futura", size = 10),
+        # strip.text = element_text(family = "Futura", face = "bold", size = 12))
+  )
 
 ggsave("output/figure_1.pdf", plot = map, width = 8, height = 9, units = "in",
        useDingbats = FALSE)
@@ -118,8 +119,8 @@ active_listings_graph <-
   theme_minimal() +
   scale_y_continuous(name = NULL, label = scales::comma) +
   theme_minimal() +
-  scale_x_date(name = NULL, limits = c(as.Date("2016-05-08"), NA)) +
-  theme(text = element_text(family = "Futura"))
+  scale_x_date(name = NULL, limits = c(as.Date("2016-05-08"), NA)) #+
+  # theme(text = element_text(family = "Futura"))
 
 ggsave("output/figure_2.pdf", plot = active_listings_graph, width = 8, 
        height = 5, units = "in", useDingbats = FALSE)
@@ -257,63 +258,59 @@ ggsave("output/figure_2.pdf", plot = active_listings_graph, width = 8,
   
 
 
-### FIGURE 4 - Nova Scotia map #################################################
+### FIGURE 4 -PEI map #################################################
 
-# main_nova_scotia <-
-#   DA_NS %>% 
-#   st_simplify(preserveTopology = TRUE, dTolerance = 5) %>% 
-#   ggplot() +
-#   geom_sf(aes(fill = n / Dwellings), lwd = 0, colour = "white") +
-#   geom_rect(
-#     xmin = st_bbox(filter(neighbourhoods, 
-#                           urban_rural %in% c("halifax", "dartmouth")))[[1]],
-#     ymin = st_bbox(filter(neighbourhoods,
-#                           urban_rural %in% c("halifax", "dartmouth")))[[2]],
-#     xmax = st_bbox(filter(neighbourhoods,
-#                           urban_rural %in% c("halifax", "dartmouth")))[[3]],
-#     ymax = st_bbox(filter(neighbourhoods, 
-#                           urban_rural %in% c("halifax", "dartmouth")))[[4]],
-#             fill = NA, colour = "black", size = 0.6) +
-#   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
-#                        na.value = "grey80",
-#                        limits = c(0, 0.1),
-#                        oob = scales::squish,
-#                        labels = scales::percent) +
-#   coord_sf(expand = FALSE) +
-#   guides(fill = guide_colorbar(
-#     title = "Active STRs as share of total dwellings")) +
-#   theme(axis.line = element_blank(),
-#         axis.text.x = element_blank(),
-#         axis.text.y = element_blank(),
-#         axis.ticks = element_blank(),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank(),
-#         panel.background = element_blank(),
-#         panel.border = element_blank(),
-#         legend.justification = c(0, 1),
-#         legend.position = c(0, .95),
-#         text = element_text(family = "Futura", face = "plain"),
-#         legend.title = element_text(family = "Futura", face = "bold", 
-#                                     size = 10),
-#         legend.text = element_text(family = "Futura", size = 10))
-# 
-# nova_scotia_map <- 
-#   ggdraw(clip = "on") +
-#   draw_plot(main_nova_scotia) +
-#   draw_plot(
-#     {main_nova_scotia + 
-#         gg_bbox(filter(neighbourhoods, 
-#                        urban_rural %in% c("halifax", "dartmouth")),
-#                 expand = FALSE) +
-#         theme(legend.position = "none")},
-#     x = 0.58, 
-#     y = 0,
-#     width = 0.46, 
-#     height = 0.46)
-# 
-# ggsave("output/figure_4.pdf", plot = nova_scotia_map, width = 8,
-#        height = 6.5, units = "in", useDingbats = FALSE)
-# 
+main_PEI <-
+  DA_PEI %>%
+  st_simplify(preserveTopology = TRUE, dTolerance = 5) %>%
+  ggplot() +
+  geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
+  geom_rect(
+    xmin = st_bbox(filter(DAs_charlottetown))[[1]],
+    ymin = st_bbox(filter(DAs_charlottetown))[[2]],
+    xmax = st_bbox(filter(DAs_charlottetown))[[3]],
+    ymax = st_bbox(filter(DAs_charlottetown))[[4]],
+            fill = NA, colour = "black", size = 0.6) +
+  scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
+                       na.value = "grey80",
+                       limits = c(0, 0.1),
+                       oob = scales::squish,
+                       labels = scales::percent) +
+  coord_sf(expand = FALSE) +
+  guides(fill = guide_colorbar(
+    title = "Active STRs as share of total dwellings")) +
+  theme(axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        legend.justification = c(0, 1),
+        legend.position = c(0, .95),
+        # text = element_text(family = "Futura", face = "plain"),
+        # legend.title = element_text(family = "Futura", face = "bold",
+        #                             size = 10),
+        # legend.text = element_text(family = "Futura", size = 10)
+        )
+
+PEI_map <-
+  ggdraw(clip = "on") +
+  draw_plot(main_PEI) +
+  draw_plot(
+    {main_PEI +
+        gg_bbox(DAs_charlottetown,
+                expand = FALSE) +
+        theme(legend.position = "none")},
+    x = 0.58,
+    y = 0,
+    width = 0.46,
+    height = 0.46)
+
+ggsave("output/figure_4.pdf", plot = PEI_map, width = 8,
+       height = 6.5, units = "in", useDingbats = FALSE)
+
 
 
 
@@ -442,65 +439,65 @@ ggsave("output/figure_8.pdf", plot = housing_graph, width = 8, height = 7,
 
 ### FIGURE 9 - housing loss map ################################################
 
-# main_housing_nbhd <-
-#   airbnb_neighbourhoods %>% 
-#   ggplot() +
-#   geom_sf(aes(fill = housing_loss_pct, geometry = geometry), lwd = 0, 
-#           colour = "white") +
-#   geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[1]],
-#             ymin = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[2]],
-#             xmax = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[3]],
-#             ymax = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[4]],
-#             fill = NA, colour = "black", size = 1) +
-#   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
-#                        values = (c(0, 0.5, 1)),
-#                        limits = c(0, 0.02),
-#                        oob = scales::squish,
-#                        labels = scales::percent) + 
-#   coord_sf(expand = FALSE) +
-#   # geom_sf(data = charlottetown_streets, colour = alpha("grey", 0.5)) +
-#   guides(fill = guide_colorbar(
-#     title = "Percentage of housing lost to STRs")) +
-#   theme(axis.line = element_blank(),
-#         axis.text.x = element_blank(),
-#         axis.text.y = element_blank(),
-#         axis.ticks = element_blank(),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank(),
-#         panel.background = element_blank(),
-#         panel.border = element_blank(),
-#         legend.justification = c(0, 1),
-#         legend.position = c(0, 1),
-#         text = element_text(family = "Futura", face = "plain"),
-#         legend.title = element_text(family = "Futura", face = "bold", 
-#                                     size = 10),
-#         legend.text = element_text(family = "Futura", size = 10))
-# 
-# housing_nbhd <- 
-#   ggdraw(clip = "on") +
-#   draw_plot(main_housing_nbhd) +
-#   draw_plot(
-#     {main_housing_nbhd + 
-#       gg_bbox(filter(airbnb_neighbourhoods, 
-#                      urban_rural %in% c("Halifax", "Dartmouth")),
-#               expand = FALSE) +
-#         theme(legend.position = "none")},
-#     x = 0.62, 
-#     y = 0,
-#     width = 0.42, 
-#     height = 0.42)
-# 
-# ggsave("output/figure_9.pdf", plot = housing_nbhd, width = 8, height = 6, 
-#        units = "in", useDingbats = FALSE)
-# 
+main_housing_charlottetown <-
+  DAs_charlottetown %>%
+  ggplot() +
+  geom_sf(aes(fill = housing_loss_pct, geometry = geometry), lwd = 0,
+          colour = "white") +
+  geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods,
+                                  urban_rural %in% c("Halifax",
+                                                     "Dartmouth")))[[1]],
+            ymin = st_bbox(filter(airbnb_neighbourhoods,
+                                  urban_rural %in% c("Halifax",
+                                                     "Dartmouth")))[[2]],
+            xmax = st_bbox(filter(airbnb_neighbourhoods,
+                                  urban_rural %in% c("Halifax",
+                                                     "Dartmouth")))[[3]],
+            ymax = st_bbox(filter(airbnb_neighbourhoods,
+                                  urban_rural %in% c("Halifax",
+                                                     "Dartmouth")))[[4]],
+            fill = NA, colour = "black", size = 1) +
+  scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
+                       values = (c(0, 0.5, 1)),
+                       limits = c(0, 0.02),
+                       oob = scales::squish,
+                       labels = scales::percent) +
+  coord_sf(expand = FALSE) +
+  # geom_sf(data = charlottetown_streets, colour = alpha("grey", 0.5)) +
+  guides(fill = guide_colorbar(
+    title = "Percentage of housing lost to STRs")) +
+  theme(axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        legend.justification = c(0, 1),
+        legend.position = c(0, 1),
+        text = element_text(family = "Futura", face = "plain"),
+        legend.title = element_text(family = "Futura", face = "bold",
+                                    size = 10),
+        legend.text = element_text(family = "Futura", size = 10))
+
+housing_nbhd <-
+  ggdraw(clip = "on") +
+  draw_plot(main_housing_nbhd) +
+  draw_plot(
+    {main_housing_nbhd +
+      gg_bbox(filter(airbnb_neighbourhoods,
+                     urban_rural %in% c("Halifax", "Dartmouth")),
+              expand = FALSE) +
+        theme(legend.position = "none")},
+    x = 0.62,
+    y = 0,
+    width = 0.42,
+    height = 0.42)
+
+ggsave("output/figure_9.pdf", plot = housing_nbhd, width = 8, height = 6,
+       units = "in", useDingbats = FALSE)
+
 
 
 ### FIGURE 10 - legal listings (principal residences) ###########################
