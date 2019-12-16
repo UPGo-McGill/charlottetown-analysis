@@ -442,168 +442,168 @@ ggsave("output/figure_8.pdf", plot = housing_graph, width = 8, height = 7,
 
 ### FIGURE 9 - housing loss map ################################################
 
-main_housing_nbhd <-
-  airbnb_neighbourhoods %>% 
-  ggplot() +
-  geom_sf(aes(fill = housing_loss_pct, geometry = geometry), lwd = 0, 
-          colour = "white") +
-  geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[1]],
-            ymin = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[2]],
-            xmax = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[3]],
-            ymax = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[4]],
-            fill = NA, colour = "black", size = 1) +
-  scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
-                       values = (c(0, 0.5, 1)),
-                       limits = c(0, 0.02),
-                       oob = scales::squish,
-                       labels = scales::percent) + 
-  coord_sf(expand = FALSE) +
-  # geom_sf(data = HRM_streets, colour = alpha("grey", 0.5)) +
-  guides(fill = guide_colorbar(
-    title = "Percentage of housing lost to STRs")) +
-  theme(axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.background = element_blank(),
-        panel.border = element_blank(),
-        legend.justification = c(0, 1),
-        legend.position = c(0, 1),
-        text = element_text(family = "Futura", face = "plain"),
-        legend.title = element_text(family = "Futura", face = "bold", 
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10))
-
-housing_nbhd <- 
-  ggdraw(clip = "on") +
-  draw_plot(main_housing_nbhd) +
-  draw_plot(
-    {main_housing_nbhd + 
-      gg_bbox(filter(airbnb_neighbourhoods, 
-                     urban_rural %in% c("Halifax", "Dartmouth")),
-              expand = FALSE) +
-        theme(legend.position = "none")},
-    x = 0.62, 
-    y = 0,
-    width = 0.42, 
-    height = 0.42)
-
-ggsave("output/figure_9.pdf", plot = housing_nbhd, width = 8, height = 6, 
-       units = "in", useDingbats = FALSE)
-
+# main_housing_nbhd <-
+#   airbnb_neighbourhoods %>% 
+#   ggplot() +
+#   geom_sf(aes(fill = housing_loss_pct, geometry = geometry), lwd = 0, 
+#           colour = "white") +
+#   geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[1]],
+#             ymin = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[2]],
+#             xmax = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[3]],
+#             ymax = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[4]],
+#             fill = NA, colour = "black", size = 1) +
+#   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
+#                        values = (c(0, 0.5, 1)),
+#                        limits = c(0, 0.02),
+#                        oob = scales::squish,
+#                        labels = scales::percent) + 
+#   coord_sf(expand = FALSE) +
+#   # geom_sf(data = charlottetown_streets, colour = alpha("grey", 0.5)) +
+#   guides(fill = guide_colorbar(
+#     title = "Percentage of housing lost to STRs")) +
+#   theme(axis.line = element_blank(),
+#         axis.text.x = element_blank(),
+#         axis.text.y = element_blank(),
+#         axis.ticks = element_blank(),
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_blank(),
+#         panel.background = element_blank(),
+#         panel.border = element_blank(),
+#         legend.justification = c(0, 1),
+#         legend.position = c(0, 1),
+#         text = element_text(family = "Futura", face = "plain"),
+#         legend.title = element_text(family = "Futura", face = "bold", 
+#                                     size = 10),
+#         legend.text = element_text(family = "Futura", size = 10))
+# 
+# housing_nbhd <- 
+#   ggdraw(clip = "on") +
+#   draw_plot(main_housing_nbhd) +
+#   draw_plot(
+#     {main_housing_nbhd + 
+#       gg_bbox(filter(airbnb_neighbourhoods, 
+#                      urban_rural %in% c("Halifax", "Dartmouth")),
+#               expand = FALSE) +
+#         theme(legend.position = "none")},
+#     x = 0.62, 
+#     y = 0,
+#     width = 0.42, 
+#     height = 0.42)
+# 
+# ggsave("output/figure_9.pdf", plot = housing_nbhd, width = 8, height = 6, 
+#        units = "in", useDingbats = FALSE)
+# 
 
 
 ### FIGURE 10 - legal listings (principal residences) ###########################
 
-main_legal <-
-  legal %>% 
-  mutate(legal = if_else(legal == TRUE, FALSE, TRUE)) %>% 
-  ggplot() +
-  geom_sf(data = HRM_streets, colour = alpha("grey", 0.3), lwd = 0.2) +
-  geom_sf(aes(colour = legal), size = 0.7, stroke = 0, alpha = 0.5,
-          show.legend = "point") +
-  geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[1]],
-            ymin = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[2]],
-            xmax = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[3]],
-            ymax = st_bbox(filter(airbnb_neighbourhoods, 
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[4]],
-            fill = NA, colour = "black", size = 1) +
-  scale_colour_manual(name = "Listings needing to register",
-                      values = c("#9DBF9E", "#A84268")) + 
-  guides(colour = guide_legend(
-    override.aes = list(colour = c("#9DBF9E", "#A84268"),
-                        fill = c("#9DBF9E", "#A84268"), alpha = 1, size = 3,
-                        shape = 21))) +
-  coord_sf(expand = FALSE) +
-  theme(axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.background = element_blank(),
-        panel.border = element_blank(),
-        legend.justification = c(0, 1),
-        legend.position = c(0, 1),
-        text = element_text(family = "Futura", face = "plain"),
-        legend.title = element_text(family = "Futura", face = "bold", 
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10))
-
-legal_map <- 
-  ggdraw(clip = "on") +
-  draw_plot(main_legal) +
-  draw_plot(
-    {main_legal + 
-        gg_bbox(filter(airbnb_neighbourhoods, 
-                       urban_rural %in% c("Halifax", "Dartmouth")),
-                expand = FALSE) +
-        theme(legend.position = "none")},
-    x = 0.62, 
-    y = 0,
-    width = 0.42, 
-    height = 0.42)
-
-ggsave("output/figure_10.pdf", plot = legal_map, width = 8, height = 6, 
-       units = "in", useDingbats = FALSE)
+# main_legal <-
+#   legal %>% 
+#   mutate(legal = if_else(legal == TRUE, FALSE, TRUE)) %>% 
+#   ggplot() +
+#   geom_sf(data = HRM_streets, colour = alpha("grey", 0.3), lwd = 0.2) +
+#   geom_sf(aes(colour = legal), size = 0.7, stroke = 0, alpha = 0.5,
+#           show.legend = "point") +
+#   geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[1]],
+#             ymin = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[2]],
+#             xmax = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[3]],
+#             ymax = st_bbox(filter(airbnb_neighbourhoods, 
+#                                   urban_rural %in% c("Halifax",
+#                                                      "Dartmouth")))[[4]],
+#             fill = NA, colour = "black", size = 1) +
+#   scale_colour_manual(name = "Listings needing to register",
+#                       values = c("#9DBF9E", "#A84268")) + 
+#   guides(colour = guide_legend(
+#     override.aes = list(colour = c("#9DBF9E", "#A84268"),
+#                         fill = c("#9DBF9E", "#A84268"), alpha = 1, size = 3,
+#                         shape = 21))) +
+#   coord_sf(expand = FALSE) +
+#   theme(axis.line = element_blank(),
+#         axis.text.x = element_blank(),
+#         axis.text.y = element_blank(),
+#         axis.ticks = element_blank(),
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_blank(),
+#         panel.background = element_blank(),
+#         panel.border = element_blank(),
+#         legend.justification = c(0, 1),
+#         legend.position = c(0, 1),
+#         text = element_text(family = "Futura", face = "plain"),
+#         legend.title = element_text(family = "Futura", face = "bold", 
+#                                     size = 10),
+#         legend.text = element_text(family = "Futura", size = 10))
+# 
+# legal_map <- 
+#   ggdraw(clip = "on") +
+#   draw_plot(main_legal) +
+#   draw_plot(
+#     {main_legal + 
+#         gg_bbox(filter(airbnb_neighbourhoods, 
+#                        urban_rural %in% c("Halifax", "Dartmouth")),
+#                 expand = FALSE) +
+#         theme(legend.position = "none")},
+#     x = 0.62, 
+#     y = 0,
+#     width = 0.42, 
+#     height = 0.42)
+# 
+# ggsave("output/figure_10.pdf", plot = legal_map, width = 8, height = 6, 
+#        units = "in", useDingbats = FALSE)
 
 
 ### FIGURE 11 - vacancy rate change ############################################
 
-vacancy_rate_map <-
-  CMHC_tidy %>% 
-  st_as_sf() %>% 
-  mutate(name = if_else(name == "rental_vacancy", "Current vacancy rate",
-                        "Post-regulation vacancy rate"),
-         name = factor(
-           name, 
-           levels = c("Current vacancy rate",
-                      "Post-regulation vacancy rate")),
-         pct = paste0(substr(value, 4, 4), ".", 
-                      substr(round(CMHC_tidy$value, 3), 5, 5), "%"),
-         pct = if_else(nchar(pct) == 4, pct, paste0(substr(pct, 1, 2), 
-                                                    "0%"))) %>% 
-  filter(zone != "Remainder of CMA") %>% 
-  ggplot() +
-  geom_sf(data = CMHC, fill = "grey90", lwd = 0, colour = "transparent") +
-  geom_sf(data = HRM_streets$geometry, colour = alpha("grey", 0.3), lwd = 0.2) +
-  geom_sf(aes(fill = value), lwd = 0, colour = "white", alpha = 0.6) +
-  geom_sf_label(aes(label = pct), size = 1.5, family = "Futura") +
-  scale_fill_gradientn(colors = c("#A84268", "#FCB97D", "#9DBF9E"),
-                       values = (c(0, 0.5, 1)),
-                       limits = c(0.01, 0.03),
-                       oob = scales::squish,
-                       labels = scales::percent) +
-  coord_sf(expand = FALSE) +
-  facet_wrap(vars(name), nrow = 1) +
-  theme(axis.ticks = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        rect = element_blank(),
-        legend.position = "none",
-        text = element_text(family = "Futura", face = "plain"),
-        strip.text = element_text(family = "Futura", face = "bold", 
-                                  size = 12)) +
-  gg_bbox(CMHC %>% slice(1:9))
-
-ggsave("output/figure_11.pdf", plot = vacancy_rate_map, width = 8, height = 4, 
-       units = "in", useDingbats = FALSE)
+# vacancy_rate_map <-
+#   CMHC_tidy %>% 
+#   st_as_sf() %>% 
+#   mutate(name = if_else(name == "rental_vacancy", "Current vacancy rate",
+#                         "Post-regulation vacancy rate"),
+#          name = factor(
+#            name, 
+#            levels = c("Current vacancy rate",
+#                       "Post-regulation vacancy rate")),
+#          pct = paste0(substr(value, 4, 4), ".", 
+#                       substr(round(CMHC_tidy$value, 3), 5, 5), "%"),
+#          pct = if_else(nchar(pct) == 4, pct, paste0(substr(pct, 1, 2), 
+#                                                     "0%"))) %>% 
+#   filter(zone != "Remainder of CMA") %>% 
+#   ggplot() +
+#   geom_sf(data = CMHC, fill = "grey90", lwd = 0, colour = "transparent") +
+#   geom_sf(data = HRM_streets$geometry, colour = alpha("grey", 0.3), lwd = 0.2) +
+#   geom_sf(aes(fill = value), lwd = 0, colour = "white", alpha = 0.6) +
+#   geom_sf_label(aes(label = pct), size = 1.5, family = "Futura") +
+#   scale_fill_gradientn(colors = c("#A84268", "#FCB97D", "#9DBF9E"),
+#                        values = (c(0, 0.5, 1)),
+#                        limits = c(0.01, 0.03),
+#                        oob = scales::squish,
+#                        labels = scales::percent) +
+#   coord_sf(expand = FALSE) +
+#   facet_wrap(vars(name), nrow = 1) +
+#   theme(axis.ticks = element_blank(),
+#         axis.text.x = element_blank(),
+#         axis.text.y = element_blank(),
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_blank(),
+#         rect = element_blank(),
+#         legend.position = "none",
+#         text = element_text(family = "Futura", face = "plain"),
+#         strip.text = element_text(family = "Futura", face = "bold", 
+#                                   size = 12)) +
+#   gg_bbox(CMHC %>% slice(1:9))
+# 
+# ggsave("output/figure_11.pdf", plot = vacancy_rate_map, width = 8, height = 4, 
+#        units = "in", useDingbats = FALSE)
