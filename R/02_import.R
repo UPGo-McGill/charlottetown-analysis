@@ -29,7 +29,7 @@ charlottetown_streets <-
 
 ### Census import ##############################################################
 
-DA_PEI <-
+DAs_PEI <-
   get_census(
     dataset = "CA16", regions = list(PR = "11"), level = "DA",
     vectors = c("v_CA16_2398", "v_CA16_5078", "v_CA16_4888", "v_CA16_6695",
@@ -182,9 +182,15 @@ daily <-
 
 property <- 
   property %>% 
-  strr_raffle(DAs_charlottetown, Geo_UID, dwellings) %>% 
-  mutate(DA_GeoUID = winner) %>% 
-  select(-winner)
+  strr_raffle(DAs_charlottetown, Geo_UID, dwellings) 
+
+DAs_charlottetown <- 
+  property %>% 
+  st_drop_geometry() %>% 
+  count(winner) %>% 
+  rename(Geo_UID = winner) %>% 
+  left_join(DAs_charlottetown, .)
+  
 
 ## Add last twelve months revenue
 

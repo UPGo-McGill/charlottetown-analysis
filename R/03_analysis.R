@@ -111,35 +111,32 @@ nrow(filter(property, created <= end_date, scraped >= end_date,
 
 ## Raffle of PEI listings by DA
 
-# upgo_connect()
-# 
-# property_PEI <- 
-#   property_all %>% 
-#   filter(country == "Canada", region == "Prince Edward Island") %>% 
-#   collect()
-# 
+upgo_connect()
+
+property_PEI <-
+  property_all %>%
+  filter(country == "Canada", region == "Prince Edward Island") %>%
+  collect()
+
 # upgo_disconnect()
 # 
-# DAs_PEI <- 
-#   cancensus::get_census("CA16", list(PR = "11"), "DA", geo_format = "sf") %>% 
-#   st_transform(32620)
-# 
-# property_PEI <- 
-#   property_PEI %>% 
-#   filter(housing == TRUE, created <= "2019-10-31", scraped >= "2019-10-31") %>% 
-#   st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
-#   st_transform(32620)
-# 
-# property_PEI <- 
-#   property_PEI %>% 
-#   strr_raffle(DAs_PEI, GeoUID, Dwellings, cores = 5)
-# 
-# DAs_PEI <- 
-#   property_PEI %>% 
-#   st_drop_geometry() %>% 
-#   count(winner) %>% 
-#   rename(GeoUID = winner) %>% 
-#   left_join(DAs_PEI, .)
+
+property_PEI <-
+  property_PEI %>%
+  filter(housing == TRUE, created <= "2019-10-31", scraped >= "2019-10-31") %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(32620)
+
+property_PEI <-
+  property_PEI %>%
+  strr_raffle(DAs_PEI, Geo_UID, dwellings, cores = 5)
+
+DAs_PEI <-
+  property_PEI %>%
+  st_drop_geometry() %>%
+  count(winner) %>%
+  rename(Geo_UID = winner) %>%
+  left_join(DAs_PEI, .)
 
 
 ### Which STR platforms are used in Halifax? ###################################
