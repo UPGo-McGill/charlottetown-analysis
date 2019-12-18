@@ -118,7 +118,7 @@ property_PEI <-
   filter(country == "Canada", region == "Prince Edward Island") %>%
   collect()
 
-# upgo_disconnect()
+ upgo_disconnect()
 # 
 
 property_PEI <-

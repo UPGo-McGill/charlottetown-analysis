@@ -383,9 +383,10 @@ bedrooms_graph <-
         axis.title = element_blank(),
         axis.ticks = element_blank(),
         legend.position = "bottom", 
-        legend.title = element_text(family = "Futura", face = "bold", 
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10))
+        # legend.title = element_text(family = "Futura", face = "bold", 
+        #                             size = 10),
+        # legend.text = element_text(family = "Futura", size = 10)
+        )
 
 ggsave("output/figure_5.pdf", plot = bedrooms_graph, width = 8, 
        height = 5, units = "in", useDingbats = FALSE)
@@ -417,10 +418,10 @@ revenue_graph <-
   scale_y_continuous(labels = scales::percent) +
   theme(axis.title.y = element_blank(),
         axis.title.x = element_blank(),
-        text = element_text(family = "Futura", face = "plain"),
-        legend.title = element_text(family = "Futura", face = "bold", 
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10),
+        # text = element_text(family = "Futura", face = "plain"),
+        # legend.title = element_text(family = "Futura", face = "bold", 
+        #                             size = 10),
+        # legend.text = element_text(family = "Futura", size = 10),
         legend.position = "none")
 
 ggsave("output/figure_6.pdf", plot = revenue_graph, width = 8, height = 4, 
@@ -449,10 +450,11 @@ ML_graph <-
   scale_x_date(name = NULL, limits = c(as.Date("2016-06-01"), NA)) +
   scale_colour_manual(values = c("#9DBF9E", "#A84268")) +
   theme(legend.position = "bottom", 
-        text = element_text(family = "Futura", face = "plain"),
-        legend.title = element_text(family = "Futura", face = "bold", 
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10))
+        # text = element_text(family = "Futura", face = "plain"),
+        # legend.title = element_text(family = "Futura", face = "bold", 
+        #                             size = 10),
+        # legend.text = element_text(family = "Futura", size = 10)
+        )
 
 ggsave("output/figure_7.pdf", plot = ML_graph, width = 8, height = 6, 
        units = "in", useDingbats = FALSE)
@@ -469,10 +471,11 @@ housing_graph <-
   scale_x_date(name = NULL, limits = c(as.Date("2016-10-01"), NA)) +
   scale_fill_manual(values = c("#9DBF9E", "#A84268")) +
   theme(legend.position = "bottom", 
-        text = element_text(family = "Futura", face = "plain"),
-        legend.title = element_text(family = "Futura", face = "bold", 
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10))
+        # text = element_text(family = "Futura", face = "plain"),
+        # legend.title = element_text(family = "Futura", face = "bold", 
+        #                             size = 10),
+        # legend.text = element_text(family = "Futura", size = 10)
+        )
 
 ggsave("output/figure_8.pdf", plot = housing_graph, width = 8, height = 7, 
        units = "in", useDingbats = FALSE)
@@ -486,19 +489,19 @@ main_housing_charlottetown <-
   ggplot() +
   geom_sf(aes(fill = housing_loss_pct, geometry = geometry), lwd = 0,
           colour = "white") +
-  geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods,
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[1]],
-            ymin = st_bbox(filter(airbnb_neighbourhoods,
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[2]],
-            xmax = st_bbox(filter(airbnb_neighbourhoods,
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[3]],
-            ymax = st_bbox(filter(airbnb_neighbourhoods,
-                                  urban_rural %in% c("Halifax",
-                                                     "Dartmouth")))[[4]],
-            fill = NA, colour = "black", size = 1) +
+  # geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods,
+  #                                 urban_rural %in% c("Halifax",
+  #                                                    "Dartmouth")))[[1]],
+  #           ymin = st_bbox(filter(airbnb_neighbourhoods,
+  #                                 urban_rural %in% c("Halifax",
+  #                                                    "Dartmouth")))[[2]],
+  #           xmax = st_bbox(filter(airbnb_neighbourhoods,
+  #                                 urban_rural %in% c("Halifax",
+  #                                                    "Dartmouth")))[[3]],
+  #           ymax = st_bbox(filter(airbnb_neighbourhoods,
+  #                                 urban_rural %in% c("Halifax",
+  #                                                    "Dartmouth")))[[4]],
+  #           fill = NA, colour = "black", size = 1) +
   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
                        values = (c(0, 0.5, 1)),
                        limits = c(0, 0.02),
@@ -518,26 +521,27 @@ main_housing_charlottetown <-
         panel.border = element_blank(),
         legend.justification = c(0, 1),
         legend.position = c(0, 1),
-        text = element_text(family = "Futura", face = "plain"),
-        legend.title = element_text(family = "Futura", face = "bold",
-                                    size = 10),
-        legend.text = element_text(family = "Futura", size = 10))
+        # text = element_text(family = "Futura", face = "plain"),
+        # legend.title = element_text(family = "Futura", face = "bold",
+        #                             size = 10),
+        # legend.text = element_text(family = "Futura", size = 10)
+        )
 
-housing_nbhd <-
-  ggdraw(clip = "on") +
-  draw_plot(main_housing_nbhd) +
-  draw_plot(
-    {main_housing_nbhd +
-      gg_bbox(filter(airbnb_neighbourhoods,
-                     urban_rural %in% c("Halifax", "Dartmouth")),
-              expand = FALSE) +
-        theme(legend.position = "none")},
-    x = 0.62,
-    y = 0,
-    width = 0.42,
-    height = 0.42)
+housing_charlottetown <-
+  main_housing_charlottetown
+  # ggdraw(clip = "on") +
+  # draw_plot(main_housing_nbhd) +
+  # draw_plot(
+  #   {main_housing_nbhd +
+  #     gg_bbox(DAs_charlottetown,
+  #             expand = FALSE) +
+  #       theme(legend.position = "none")},
+  #   x = 0.62,
+  #   y = 0,
+  #   width = 0.42,
+  #   height = 0.42)
 
-ggsave("output/figure_9.pdf", plot = housing_nbhd, width = 8, height = 6,
+ggsave("output/figure_9.pdf", plot = housing_charlottetown, width = 8, height = 6,
        units = "in", useDingbats = FALSE)
 
 

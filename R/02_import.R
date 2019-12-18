@@ -1,4 +1,4 @@
-#### HALIFAX IMPORT ############################################################
+#### CHARLOTTETOWN IMPORT ############################################################
 
 source("R/01_helper_functions.R")
 
@@ -87,7 +87,7 @@ DAs_charlottetown <-
 con <- RPostgres::dbConnect(
   RPostgres::Postgres(),
   user = "rbbinder",
-  password = "",
+  password = "csq4PvpZksy4tZdKW8fvsMoa",
   host = "025wpgs.campus.mcgill.ca",
   dbname = "airdna")
 
