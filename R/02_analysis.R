@@ -240,7 +240,7 @@ GH_total <-
 #TKTK error 
 GH_total <- GH_total[(length(GH_total) + 1 - n_groups(FREH %>% group_by(date))):length(GH_total)]
 
-# error from missing GH_total
+# TKTK error from missing GH_total
 housing_loss <- 
   FREH %>% 
   group_by(date) %>% 

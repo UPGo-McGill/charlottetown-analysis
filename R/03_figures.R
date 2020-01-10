@@ -263,7 +263,7 @@ charlottetown_map <-
   left_join(main_charlottetown) %>% 
   st_simplify(preserveTopology = TRUE, dTolerance = 5) %>%
   ggplot() +
-  geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") + # TKTK ERROR: non-numeric argument to binary operator
+  geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
                        na.value = "grey80",
                        limits = c(0, 0.1),
@@ -460,6 +460,7 @@ ggsave("output/figure_7.pdf", plot = ML_graph, width = 8, height = 6,
   
 ### FIGURE 8 - housing loss ####################################################
 
+# TKTK need housing_loss for this
 housing_graph <- 
   ggplot(housing_loss) +
   geom_col(aes(date, `Housing units`, fill = `Listing type`),
