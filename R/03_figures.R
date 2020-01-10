@@ -1,6 +1,4 @@
-#### HALIFAX ANALYSIS ##########################################################
-
-source("R/01_helper_functions.R")
+#### CHARLOTTETOWN ANALYSIS ##########################################################
 
 load("data/active_listings_filtered.Rdata")
 load("data/charlottetown_property.Rdata")
@@ -16,64 +14,59 @@ load("data/DAs_charlottetown.Rdata")
 load("data/legal.Rdata")
 
 # Set up dates
-start_date <- as.Date("2018-11-01")
 end_date <- as.Date("2019-10-31")
-date_yoy <- as.Date("2018-10-31")
 
 # Exchange rate (average over last twelve months)
-exchange_rate <- mean(1.3037, 1.3010, 1.3200,
-                      1.3432, 1.3301, 1.3206, 
-                      1.3368, 1.3378, 1.3438,
-                      1.3188, 1.3046, 1.3316)
+
+# OLD EXCHANGE RATE
+# exchange_rate <- mean(1.3037, 1.3010, 1.3200,
+#                       1.3432, 1.3301, 1.3206, 
+#                       1.3368, 1.3378, 1.3438,
+#                       1.3188, 1.3046, 1.3316)
 
 
 ### FIGURE 1 - spatial distribution of listings ################################
 
-property_in_charlottetown <-
-  property %>% 
-  select(-revenue) %>% 
-  st_intersection(st_buffer(charlottetown, 250))
-
 property_2016 <- 
   daily %>% 
-  filter(status == "R", date >= "2015-11-01", date <= "2016-10-31") %>% 
+  filter(status == "R", date > end_date - years(4), date <= end_date - years(3)) %>% 
   group_by(property_ID) %>% 
   summarize(revenue = sum(price) * exchange_rate) %>% 
-  left_join(filter(property_in_charlottetown, housing == TRUE), .) %>% 
+  left_join(filter(property, housing == TRUE), .) %>% 
   mutate(Year = "2016") %>% 
   filter(revenue > 0)
 
 property_2017 <- 
   daily %>% 
-  filter(status == "R", date >= "2016-11-01", date <= "2017-10-31") %>% 
+  filter(status == "R", date > end_date - years(3), date <= end_date - years(2)) %>% 
   group_by(property_ID) %>% 
   summarize(revenue = sum(price) * exchange_rate) %>% 
-  left_join(filter(property_in_charlottetown, housing == TRUE), .) %>% 
+  left_join(filter(property, housing == TRUE), .) %>% 
   mutate(Year = "2017") %>% 
   filter(revenue > 0)
 
 property_2018 <- 
   daily %>% 
-  filter(status == "R", date >= "2017-11-01", date <= "2018-10-31") %>% 
+  filter(status == "R", date > end_date - years(2), date <= end_date - years(1)) %>% 
   group_by(property_ID) %>% 
   summarize(revenue = sum(price) * exchange_rate) %>% 
-  left_join(filter(property_in_charlottetown, housing == TRUE), .) %>% 
+  left_join(filter(property, housing == TRUE), .) %>% 
   mutate(Year = "2018") %>% 
   filter(revenue > 0)
 
 property_2019 <- 
   daily %>% 
-  filter(status == "R", date >= start_date, date <= end_date) %>% 
+  filter(status == "R", date > end_date - years(1), date <= end_date) %>% 
   group_by(property_ID) %>% 
   summarize(revenue = sum(price) * exchange_rate) %>% 
-  left_join(filter(property_in_charlottetown, housing == TRUE), .) %>% 
+  left_join(filter(property, housing == TRUE), .) %>% 
   mutate(Year = "2019") %>% 
   filter(revenue > 0)
 
 map <- 
   rbind(property_2016, property_2017, property_2018, property_2019) %>%
   ggplot() +
-  geom_sf(data = charlottetown_streets, colour = alpha("grey", 0.3), lwd = 0.2) +
+  geom_sf(data = streets, colour = alpha("grey", 0.3), lwd = 0.2) +
   geom_sf(aes(size = revenue, colour = listing_type), stroke = 0, alpha = 0.4, 
           show.legend = "point") +
   facet_wrap(vars(Year), nrow = 2) +
@@ -110,8 +103,7 @@ ggsave("output/figure_1.pdf", plot = map, width = 8, height = 9, units = "in",
 
 active_listings_graph <-
   daily %>% 
-  filter(housing == TRUE, status != "U", date >= created, 
-         date <= scraped) %>% 
+  filter(housing == TRUE, status != "U") %>% 
   count(date) %>% 
   mutate(n = data.table::frollmean(n, 7)) %>% 
   ggplot() +
@@ -260,11 +252,18 @@ ggsave("output/figure_2.pdf", plot = active_listings_graph, width = 8,
 
 ### FIGURE 4 - Charlottetown (+ PEI) map #################################################
 
-main_charlottetown <-
-  DAs_charlottetown %>% 
+active_charlottetown <-
+  property %>% 
+  filter(housing == TRUE, created <= "2017-07-01", scraped >= "2017-07-01") %>% 
+  st_drop_geometry() %>% 
+  count(GeoUID)
+  
+charlottetown_map <- 
+  DAs %>% 
+  left_join(main_charlottetown) %>% 
   st_simplify(preserveTopology = TRUE, dTolerance = 5) %>%
   ggplot() +
-  geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
+  geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") + # TKTK ERROR: non-numeric argument to binary operator
   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
                        na.value = "grey80",
                        limits = c(0, 0.1),
@@ -289,8 +288,7 @@ main_charlottetown <-
         # legend.text = element_text(family = "Futura", size = 10)
   )
 
-charlottetown_map <-
-  main_charlottetown
+
   # ggdraw(clip = "on") +
   # draw_plot(main_charlottetown) +
   # draw_plot(
@@ -358,7 +356,7 @@ ggsave("output/figure_4.pdf", plot = charlottetown_map, width = 8,
 
 ### FIGURE 5 - bedroom breakdowns ##############################################
 
-var <- filter(property, created <= end_date, scraped >= end_date, 
+var <- filter(property, 
               housing == TRUE, listing_type == "Entire home/apt")$bedrooms
 nrows <- 20
 df <- expand.grid(y = 1:20, x = 1:20)
@@ -397,7 +395,7 @@ ggsave("output/figure_5.pdf", plot = bedrooms_graph, width = 8,
 
 revenue_graph <-
   daily %>%
-  filter(housing == TRUE, date >= start_date, status == "R") %>%
+  filter(housing == TRUE, date > end_date - years(1), status == "R") %>%
   group_by(host_ID) %>%
   summarize(rev = sum(price)*exchange_rate) %>%
   filter(rev > 0) %>%
