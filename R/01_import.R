@@ -212,4 +212,6 @@ GH <-
 
 ### Save files #################################################################
 
-save(city, daily, DAs, DAs_PEI, file = "data/charlottetown.Rdata")
+save(city, daily, DAs, DAs_PEI, FREH, GH, LTM_property, ML_daily, ML_property,
+     property, streets, end_date, exchange_rate, 
+     file = "data/charlottetown.Rdata")
