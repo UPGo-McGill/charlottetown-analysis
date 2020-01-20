@@ -1,17 +1,17 @@
 #### CHARLOTTETOWN ANALYSIS ##########################################################
 
-load("data/active_listings_filtered.Rdata")
-load("data/charlottetown_property.Rdata")
-load("data/charlottetown.Rdata")
-load("data/charlottetown_daily.Rdata")
-#load("data/housing_loss.Rdata")
-#load("data/airbnb_neighbourhoods.Rdata")
-load("data/charlottetown_streets.Rdata")
-load("data/charlottetown_GH.Rdata")
-load("data/charlottetown_FREH.Rdata")
-load("data/DAs_charlottetown.Rdata")
-#load("data/neighbourhoods.Rdata")
-load("data/legal.Rdata")
+# load("data/active_listings_filtered.Rdata")
+# load("data/charlottetown_property.Rdata")
+# load("data/charlottetown.Rdata")
+# load("data/charlottetown_daily.Rdata")
+# #load("data/housing_loss.Rdata")
+# #load("data/airbnb_neighbourhoods.Rdata")
+# load("data/charlottetown_streets.Rdata")
+# load("data/charlottetown_GH.Rdata")
+# load("data/charlottetown_FREH.Rdata")
+# load("data/DAs_charlottetown.Rdata")
+# #load("data/neighbourhoods.Rdata")
+# load("data/legal.Rdata")
 
 # Set up dates
 end_date <- as.Date("2019-10-31")
@@ -100,14 +100,21 @@ ggsave("output/figure_1.pdf", plot = map, width = 8, height = 9, units = "in",
 
 
 ### FIGURE 2 - active listings #################################################
+active_listings_type <- 
+  daily %>% 
+  count(date, listing_type) %>% 
+  mutate(n = if_else(date <= "2017-05-31" & listing_type == "Entire home/apt", n + 40, as.numeric(n)))
 
 active_listings_graph <-
   daily %>% 
   filter(housing == TRUE, status != "U") %>% 
   count(date) %>% 
-  mutate(n = data.table::frollmean(n, 7)) %>% 
+  # Numbers adjusted to account for addition of Homeaway on 2017-06-01
+  mutate(n = if_else(date <= "2017-05-31", n + 48, as.numeric(n)),
+         n = data.table::frollmean(n, 7)) %>% 
   ggplot() +
   geom_line(aes(date, n), colour = "#A84268", size = 1.5) +
+  geom_line(data = active_listings_type, aes(date, n, colour = listing_type)) +
   theme_minimal() +
   scale_y_continuous(name = NULL, label = scales::comma) +
   theme_minimal() +

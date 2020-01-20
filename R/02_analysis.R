@@ -21,6 +21,7 @@ load("data/charlottetown.Rdata")
 # Set up dates
 
 end_date <- as.Date("2019-11-30")
+key_date <- as.Date("2019-07-01")
 
 # Exchange rate (average over last twelve months)
 
@@ -55,7 +56,7 @@ canada_population <-
 
 ## Active listings from property file
 # All listings
-nrow(filter(property, housing == TRUE))
+nrow(filter(property, housing == TRUE, created <= key_date, scraped >= key_date))
 
 # Housing listings over the last twelve months
 nrow(LTM_property)
@@ -80,6 +81,7 @@ LTM_property %>%
   length(unique(LTM_property$host_ID))
 
 # LTM revenue
+
 sum(LTM_property$revenue_LTM, na.rm = TRUE)
 
 # LTM revenue by property type
@@ -114,8 +116,9 @@ nrow(LTM_property)
 
 ### Listing type prevalence ####################################################
 
-property %>% 
-  filter(housing == TRUE) %>% 
+
+  property %>% 
+  filter(housing == TRUE, created <= key_date, scraped >= key_date) %>% 
   rename(`Listing type` = listing_type) %>% 
   st_drop_geometry() %>% 
   group_by(`Listing type`) %>% 
@@ -136,7 +139,8 @@ property %>%
     `Rev. per listing` = round(`Rev. per listing`),
     `Rev. per listing` = paste0("$", str_sub(`Rev. per listing`, 1, -4),
                                 ",", str_sub(`Rev. per listing`, -3, -1))
-  ) %>% view()
+  ) %>% view() %>% 
+  write.table("output/tables/table_listing_types.txt")
 
 
 ### Bedroom breakdown ##########################################################
@@ -145,13 +149,28 @@ property %>%
   filter(housing == TRUE,
          listing_type == "Entire home/apt") %>% 
   count(bedrooms) %>% 
-  mutate(percentage = n / sum(n))
+  mutate(percentage = n / sum(n)) %>% 
+  group_by(bedrooms) %>% 
+  summarize(perc_bedrooms = sum(percentage)) 
+
+# property_bedrooms <- 
+#   property %>% 
+#   filter(
+#          housing == TRUE,
+#          listing_type == "Entire home/apt") %>% 
+#   count(bedrooms) %>% 
+#   mutate(percentage = n / sum(n))
+# 
+# sum(property_bedrooms$percentage)
+# sum(property_bedrooms$n)
+
 
 
 ### Revenue distribution and commercial operators ##############################
 
 ## Host revenue percentiles
 
+table_host_revenue <- 
 daily %>%
   filter(housing == TRUE, date > end_date - years(1), status == "R") %>%
   group_by(host_ID) %>%
@@ -161,7 +180,8 @@ daily %>%
     `Top 1%`  = sum(rev[rev > quantile(rev, c(0.99))] / sum(rev)),
     `Top 5%`  = sum(rev[rev > quantile(rev, c(0.95))] / sum(rev)),
     `Top 10%` = sum(rev[rev > quantile(rev, c(0.90))] / sum(rev)),
-    `Top 20%` = sum(rev[rev > quantile(rev, c(0.80))] / sum(rev)))
+    `Top 20%` = sum(rev[rev > quantile(rev, c(0.80))] / sum(rev))) 
+
 
 ## Median host income
 
@@ -181,7 +201,8 @@ LTM_property %>%
 LTM_property %>% 
   group_by(host_ID) %>% 
   summarise(host_rev = sum(revenue_LTM)) %>% 
-  filter(host_rev>0)
+  filter(host_rev>0) %>% 
+  arrange(-host_rev)
 
 ## Multilistings
 
