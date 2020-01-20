@@ -270,6 +270,8 @@ housing_loss <-
   gather(`Entire home/apt`, `Private room`, key = `Listing type`,
          value = `Housing units`)
 
+#TKTK error: need to fix housing loss
+
 # Current housing loss figure
 sum(filter(housing_loss, date == end_date)$`Housing units`)
 
@@ -298,12 +300,13 @@ sum(filter(housing_loss, date == end_date)$`Housing units`) /
 
 ### Listings likely in violation of principal residence requirement ############
 
-## LFRML calculations
+## LFRML calculations 
 
-# Add ML field to property file
+## WITH DATE RANGE 2019-07-01 TO END_DATE
+
 property <- 
   daily %>% 
-  filter(date == end_date) %>% 
+  filter(ML == TRUE, date >= key_date, date <= end_date) %>% 
   select(property_ID, ML) %>% 
   left_join(property, .) %>% 
   mutate(ML = if_else(is.na(ML), FALSE, ML))
@@ -347,7 +350,7 @@ property <-
 # Add GH status
 GH_list <-
   GH %>% 
-  filter(date == end_date) %>% 
+  filter(date >= key_date, date <= end_date) %>% 
   pull(property_IDs) %>%
   unlist() %>%
   unique()
@@ -359,16 +362,17 @@ property <-
 # Add FREH status
 property <- 
   FREH %>% 
-  filter(date == end_date) %>% 
+  filter(date >= key_date, date <= end_date) %>% 
   mutate(FREH = TRUE) %>% 
   left_join(property, .) %>% 
   mutate(FREH = if_else(is.na(FREH), FALSE, FREH))
 
-# Add Legal field
-legal <- 
-  property %>%
+# Add principal_res field
+
+principal_res <- 
+  property %>% 
   filter(housing == TRUE) %>% 
-  mutate(legal = case_when(
+  mutate(principal_res = case_when(
     GH == TRUE                     ~ FALSE,
     listing_type == "Shared room"  ~ TRUE,
     listing_type == "Private room" ~ TRUE,
@@ -377,19 +381,105 @@ legal <-
     ML == TRUE                     ~ FALSE,
     TRUE                           ~ TRUE))
 
-mean(legal$FREH, na.rm = TRUE)
-mean(legal$GH, na.rm = TRUE)
-mean(legal$LFRML, na.rm = TRUE)
-mean(legal$ML, na.rm = TRUE)
-mean(legal$legal, na.rm = TRUE)
+mean(principal_res$FREH, na.rm = TRUE)
+mean(principal_res$GH, na.rm = TRUE)
+mean(principal_res$LFRML, na.rm = TRUE)
+mean(principal_res$ML, na.rm = TRUE)
+mean(principal_res$principal_res, na.rm = TRUE)
+
+## LFRML calculations 
+
+## WITH DATE SET TO END_DATE
+
+# Add ML field to property file
+property <-
+  daily %>%
+  filter(date == end_date) %>%
+  select(property_ID, ML) %>%
+  left_join(property, .) %>%
+  mutate(ML = if_else(is.na(ML), FALSE, ML))
+
+# Add n_reserved and n_available fields
+property <-
+  daily %>%
+  filter(status == "R") %>%
+  group_by(property_ID) %>%
+  summarize(n_reserved = n()) %>%
+  left_join(property, .)
+
+property <-
+  daily %>%
+  filter(status == "R" | status == "A") %>%
+  group_by(property_ID) %>%
+  summarize(n_available = n()) %>%
+  left_join(property, .)
+
+# Add LFRML field
+property <-
+  property %>%
+  group_by(host_ID, listing_type) %>%
+  mutate(LFRML = case_when(
+    listing_type != "Entire home/apt" ~ FALSE,
+    ML == FALSE                       ~ FALSE,
+    n_available == min(n_available)   ~ TRUE,
+    TRUE                              ~ FALSE)) %>%
+  ungroup()
+
+ # Resolve ties
+property <-
+  property %>%
+  group_by(host_ID, listing_type) %>%
+  mutate(prob = sample(0:10000, n(), replace = TRUE),
+         LFRML = if_else(
+           sum(LFRML) > 1 & prob != max(prob), FALSE, LFRML)) %>%
+  select(-prob)
+
+# Add GH status
+GH_list <-
+  GH %>%
+  filter(date == end_date) %>%
+  pull(property_IDs) %>%
+  unlist() %>%
+  unique()
+
+property <-
+  property %>%
+  mutate(GH = if_else(property_ID %in% GH_list, TRUE, FALSE))
+
+# Add FREH status
+property <-
+  FREH %>%
+  filter(date == end_date) %>%
+  mutate(FREH = TRUE) %>%
+  left_join(property, .) %>%
+  mutate(FREH = if_else(is.na(FREH), FALSE, FREH))
+
+# Add principal_res field
+principal_res_end_date <-
+  property %>%
+  filter(housing == TRUE) %>%
+  mutate(principal_res = case_when(
+    GH == TRUE                     ~ FALSE,
+    listing_type == "Shared room"  ~ TRUE,
+    listing_type == "Private room" ~ TRUE,
+    FREH == TRUE                   ~ FALSE,
+    LFRML == TRUE                  ~ TRUE,
+    ML == TRUE                     ~ FALSE,
+    TRUE                           ~ TRUE))
+
+mean(principal_res_end_date$FREH, na.rm = TRUE)
+mean(principal_res_end_date$GH, na.rm = TRUE)
+mean(principal_res_end_date$LFRML, na.rm = TRUE)
+mean(principal_res_end_date$ML, na.rm = TRUE)
+mean(principal_res_end_date$principal_res, na.rm = TRUE)
 
 # Legal by neighbourhood
-# legal %>% 
-#   group_by(neighbourhood) %>% 
-#   summarize(non_PR = length(legal[legal == FALSE])) %>% 
-#   st_drop_geometry() %>% 
-#   left_join(neighbourhoods) %>% 
-#   select(name, non_PR) %>% 
+# legal %>%
+#   group_by(neighbourhood) %>%
+#   summarize(non_PR = length(legal[legal == FALSE])) %>%
+#   st_drop_geometry() %>%
+#   left_join(neighbourhoods) %>%
+#   select(name, non_PR) %>%
 #   view()
 
 
@@ -398,7 +488,7 @@ save(active_listings_filtered, file = "data/active_listings_filtered.Rdata")
 save(property, file = "data/charlottetown_property.Rdata")
 #save(housing_loss, file = "data/housing_loss.Rdata")
 #save(airbnb_neighbourhoods, file = "data/airbnb_neighbourhoods.Rdata")
-save(legal, file = "data/legal.Rdata")
+save(principal_res, file = "data/principal_res.Rdata")
 #save(urban_rural, file = "data/urban_rural.Rdata")
 #save(neighbourhoods, file = "data/neighbourhoods.Rdata")
 
