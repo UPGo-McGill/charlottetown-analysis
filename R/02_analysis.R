@@ -304,30 +304,30 @@ sum(filter(housing_loss, date == end_date)$`Housing units`) /
 
 ## WITH DATE RANGE 2019-07-01 TO END_DATE
 
-property <- 
+property <-
   daily %>% 
-  filter(ML == TRUE, date >= key_date, date <= end_date) %>% 
-  select(property_ID, ML) %>% 
-  left_join(property, .) %>% 
-  mutate(ML = if_else(is.na(ML), FALSE, ML))
+  group_by(property_ID) %>% 
+  summarize(ML = if_else(
+    sum(ML * (date >= key_date)) + sum(ML * (date <= end_date)) > 0, 
+    TRUE, FALSE)) %>% 
+  left_join(property, .)
 
 # Add n_reserved and n_available fields
 property <- 
   daily %>% 
-  filter(status == "R") %>% 
-  group_by(property_ID) %>% 
-  summarize(n_reserved = n()) %>% 
+  filter(status == "R", date >= key_date, date <= end_date) %>% 
+  count(property_ID, name = "n_reserved") %>% 
   left_join(property, .)
 
 property <- 
   daily %>% 
-  filter(status == "R" | status == "A") %>% 
-  group_by(property_ID) %>% 
-  summarize(n_available = n()) %>% 
+  filter(status == "R" | status == "A" & date >= key_date & 
+           date <= end_date) %>% 
+  count(property_ID, name = "n_available") %>% 
   left_join(property, .)
 
 # Add LFRML field
-property <- 
+property <-
   property %>%
   group_by(host_ID, listing_type) %>% 
   mutate(LFRML = case_when(
@@ -337,15 +337,15 @@ property <-
     TRUE                              ~ FALSE)) %>% 
   ungroup()
 
-
 # Resolve ties
-property <- 
-  property %>% 
-  group_by(host_ID, listing_type) %>% 
-  mutate(prob = sample(0:10000, n(), replace = TRUE),
-         LFRML = if_else(
-           sum(LFRML) > 1 & prob != max(prob), FALSE, LFRML)) %>% 
-  select(-prob)
+# property <- 
+#   property %>% 
+#   filter(LFRML == TRUE) %>% 
+#   group_by(host_ID, listing_type) %>% 
+#   mutate(prob = sample(0:10000, n(), replace = TRUE),
+#          LFRML = if_else(
+#            sum(LFRML) > 1 & prob != max(prob), FALSE, LFRML)) %>% 
+#   select(-prob)
 
 # Add GH status
 GH_list <-
@@ -360,19 +360,20 @@ property <-
   mutate(GH = if_else(property_ID %in% GH_list, TRUE, FALSE))
 
 # Add FREH status
-property <- 
+property <-
   FREH %>% 
   filter(date >= key_date, date <= end_date) %>% 
-  mutate(FREH = TRUE) %>% 
+  group_by(property_ID) %>% 
+  summarize(FREH = TRUE) %>% 
   left_join(property, .) %>% 
   mutate(FREH = if_else(is.na(FREH), FALSE, FREH))
 
 # Add principal_res field
 
-principal_res <- 
+property <- 
   property %>% 
-  filter(housing == TRUE) %>% 
   mutate(principal_res = case_when(
+    housing == FALSE               ~ FALSE,
     GH == TRUE                     ~ FALSE,
     listing_type == "Shared room"  ~ TRUE,
     listing_type == "Private room" ~ TRUE,
@@ -381,11 +382,16 @@ principal_res <-
     ML == TRUE                     ~ FALSE,
     TRUE                           ~ TRUE))
 
-mean(principal_res$FREH, na.rm = TRUE)
-mean(principal_res$GH, na.rm = TRUE)
-mean(principal_res$LFRML, na.rm = TRUE)
-mean(principal_res$ML, na.rm = TRUE)
-mean(principal_res$principal_res, na.rm = TRUE)
+mean(property$FREH, na.rm = TRUE)
+mean(property$GH, na.rm = TRUE)
+mean(property$LFRML, na.rm = TRUE)
+mean(property$ML, na.rm = TRUE)
+mean(property$principal_res, na.rm = TRUE)
+
+property %>% 
+  filter(created <= end_date, scraped >= end_date) %>% 
+  filter(principal_res == FALSE)
+
 
 ## LFRML calculations 
 
