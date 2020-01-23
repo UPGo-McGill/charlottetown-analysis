@@ -13,7 +13,6 @@ library(scales)
 library(zoo)
 
 
-
 # Load data file
 
 load("data/charlottetown.Rdata")
@@ -382,111 +381,76 @@ property <-
     ML == TRUE                     ~ FALSE,
     TRUE                           ~ TRUE))
 
-mean(property$FREH, na.rm = TRUE)
-mean(property$GH, na.rm = TRUE)
-mean(property$LFRML, na.rm = TRUE)
-mean(property$ML, na.rm = TRUE)
-mean(property$principal_res, na.rm = TRUE)
+# mean(property$FREH, na.rm = TRUE)
+# mean(property$GH, na.rm = TRUE)
+# mean(property$LFRML, na.rm = TRUE)
+# mean(property$ML, na.rm = TRUE)
+# mean(property$principal_res, na.rm = TRUE)
 
 property %>% 
   filter(created <= end_date, scraped >= end_date) %>% 
-  filter(principal_res == FALSE)
+  filter(principal_res == TRUE, housing == TRUE) %>% 
+  view()
+
+property %>% 
+  filter(created <= end_date, scraped >= end_date) %>% 
+  filter(principal_res == TRUE) %>% 
+  view()
 
 
-## LFRML calculations 
 
-## WITH DATE SET TO END_DATE
-
-# Add ML field to property file
-property <-
+## Add seasonal 2019 property
+property <- 
   daily %>%
-  filter(date == end_date) %>%
-  select(property_ID, ML) %>%
-  left_join(property, .) %>%
-  mutate(ML = if_else(is.na(ML), FALSE, ML))
-
-# Add n_reserved and n_available fields
-property <-
-  daily %>%
-  filter(status == "R") %>%
+  filter(listing_type == "Entire home/apt", date >= seasonal_start,
+         date <= seasonal_end, status %in% c("R", "A")) %>%
+  count(property_ID, status) %>%
   group_by(property_ID) %>%
-  summarize(n_reserved = n()) %>%
-  left_join(property, .)
+  summarize(n_available = sum(n),
+            n_reserved = sum(n[status == "R"])) %>%
+  filter(n_reserved >= 90, n_available >= 120) %>%
+  mutate(seasonal_2019 = TRUE) %>% 
+  left_join(property, .) %>% 
+  mutate(seasonal_2019 = if_else(is.na(seasonal_2019), FALSE, TRUE)) %>% 
+  view()
 
-property <-
-  daily %>%
-  filter(status == "R" | status == "A") %>%
+
+## Check seasonal for 2018 and 2017
+
+## seasonal 2018
+seasonal_2018 <- daily %>%
+  filter(listing_type == "Entire home/apt", date >= seasonal_start - years(1),
+         date <= seasonal_end - years(1), status %in% c("R", "A")) %>%
+  count(property_ID, status) %>%
   group_by(property_ID) %>%
-  summarize(n_available = n()) %>%
-  left_join(property, .)
+  summarize(n_available = sum(n),
+            n_reserved = sum(n[status == "R"])) %>%
+  filter(n_reserved >= 90, n_available >= 120) %>%
+  mutate(seasonal_2018 = TRUE) %>% 
+  left_join(property, .) %>% 
+  mutate(seasonal_2018 = if_else(is.na(seasonal_2018), FALSE, TRUE)) %>% 
+  view()
 
-# Add LFRML field
-property <-
-  property %>%
-  group_by(host_ID, listing_type) %>%
-  mutate(LFRML = case_when(
-    listing_type != "Entire home/apt" ~ FALSE,
-    ML == FALSE                       ~ FALSE,
-    n_available == min(n_available)   ~ TRUE,
-    TRUE                              ~ FALSE)) %>%
-  ungroup()
+seasonal_2018 %>% 
+  filter(seasonal_2018 == TRUE)
 
- # Resolve ties
-property <-
-  property %>%
-  group_by(host_ID, listing_type) %>%
-  mutate(prob = sample(0:10000, n(), replace = TRUE),
-         LFRML = if_else(
-           sum(LFRML) > 1 & prob != max(prob), FALSE, LFRML)) %>%
-  select(-prob)
+## seasonal 2017
 
-# Add GH status
-GH_list <-
-  GH %>%
-  filter(date == end_date) %>%
-  pull(property_IDs) %>%
-  unlist() %>%
-  unique()
+seasonal_2017 <- daily %>%
+  filter(listing_type == "Entire home/apt", date >= seasonal_start - years(2),
+         date <= seasonal_end - years(2), status %in% c("R", "A")) %>%
+  count(property_ID, status) %>%
+  group_by(property_ID) %>%
+  summarize(n_available = sum(n),
+            n_reserved = sum(n[status == "R"])) %>%
+  filter(n_reserved >= 90, n_available >= 120) %>%
+  mutate(seasonal_2017 = TRUE) %>% 
+  left_join(property, .) %>% 
+  mutate(seasonal_2017 = if_else(is.na(seasonal_2017), FALSE, TRUE)) %>% 
+  view()
 
-property <-
-  property %>%
-  mutate(GH = if_else(property_ID %in% GH_list, TRUE, FALSE))
-
-# Add FREH status
-property <-
-  FREH %>%
-  filter(date == end_date) %>%
-  mutate(FREH = TRUE) %>%
-  left_join(property, .) %>%
-  mutate(FREH = if_else(is.na(FREH), FALSE, FREH))
-
-# Add principal_res field
-principal_res_end_date <-
-  property %>%
-  filter(housing == TRUE) %>%
-  mutate(principal_res = case_when(
-    GH == TRUE                     ~ FALSE,
-    listing_type == "Shared room"  ~ TRUE,
-    listing_type == "Private room" ~ TRUE,
-    FREH == TRUE                   ~ FALSE,
-    LFRML == TRUE                  ~ TRUE,
-    ML == TRUE                     ~ FALSE,
-    TRUE                           ~ TRUE))
-
-mean(principal_res_end_date$FREH, na.rm = TRUE)
-mean(principal_res_end_date$GH, na.rm = TRUE)
-mean(principal_res_end_date$LFRML, na.rm = TRUE)
-mean(principal_res_end_date$ML, na.rm = TRUE)
-mean(principal_res_end_date$principal_res, na.rm = TRUE)
-
-# Legal by neighbourhood
-# legal %>%
-#   group_by(neighbourhood) %>%
-#   summarize(non_PR = length(legal[legal == FALSE])) %>%
-#   st_drop_geometry() %>%
-#   left_join(neighbourhoods) %>%
-#   select(name, non_PR) %>%
-#   view()
+seasonal_2017 %>% 
+  filter(!property_ID %in% FREH$property_ID)
 
 
 ## Save files #####################################
