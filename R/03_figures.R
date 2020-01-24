@@ -673,23 +673,6 @@ seasonality <- daily %>%
   summarise() %>% 
   ungroup()
 
-# Reorder
-seasonality <- 
-seasonality[c(lubridate::month(as.yearmon(ymd(end_date) + days(1))),
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 11,
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 10,
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 9, 
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 8, 
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 7,
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 6, 
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 5,
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 4, 
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 3, 
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 2, 
-              lubridate::month(as.yearmon(ymd(end_date) + days(1))) - 1),]
-
-seasonality$month <- factor(seasonality$month, levels=unique(seasonality$month))
-
 figure_seasonality <- 
   ggplot()+
   geom_line(data = seasonality,
