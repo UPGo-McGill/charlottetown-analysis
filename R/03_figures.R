@@ -656,3 +656,38 @@ ggsave("output/figure_9.pdf", plot = housing_charlottetown, width = 8, height = 
 # 
 # ggsave("output/figure_11.pdf", plot = vacancy_rate_map, width = 8, height = 4, 
 #        units = "in", useDingbats = FALSE)
+
+
+# SEASONALITY 
+# Set up data
+seasonality <- daily %>% 
+  filter(housing == TRUE, 
+         date <= end_date, 
+         date >= ymd(end_date) - years(2) + days(1)) %>% 
+  mutate(yearmonth = as.yearmon(date)) %>% 
+  group_by(yearmonth) %>% 
+  summarize(rev = sum(price[status == "R"])) %>% 
+  mutate(month = lubridate::month(yearmonth, label = TRUE)) %>% 
+  mutate(seasonality = as.vector(decompose(ts(rev, frequency = 12), "multiplicative")$seasonal)/12) %>% 
+  group_by(month, seasonality) %>% 
+  summarise() %>% 
+  ungroup()
+
+figure_seasonality <- 
+  ggplot()+
+  geom_line(data = seasonality,
+            mapping = aes(x = month, 
+                          y = seasonality), lwd = 1.8, alpha = 0.8, group = 1) +
+  theme(panel.grid.major.x = element_line(size = 0.05, color = "grey80"),
+        text=element_text(size=10),
+        axis.text = element_text(size = 10),
+        panel.grid.major.y = element_line(size = 0.05, color = "grey80"),
+        panel.grid.minor.y = element_line(size = 0.025, color = "grey80"),
+        legend.key = element_blank(),
+        legend.position = "bottom",
+        legend.justification = "center",
+        panel.background=element_blank(),
+        axis.line = element_line(size = .09, color = "grey10"))+
+  xlab("Month")+
+  ylab("Percentage of revenue")+
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1))
