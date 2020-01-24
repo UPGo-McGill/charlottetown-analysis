@@ -673,6 +673,17 @@ seasonality <- daily %>%
   summarise() %>% 
   ungroup()
 
+# Reordering and changing levels
+seasonality <- 
+map_df(seq_len(nrow(seasonality)), ~{
+  
+  seasonality[lubridate::month(as.yearmon(ymd(end_date) + days(1) + months (.x-1))), ]
+  
+})
+
+seasonality$month <- factor(seasonality$month, levels=unique(seasonality$month))
+
+# Plot
 figure_seasonality <- 
   ggplot()+
   geom_line(data = seasonality,
