@@ -298,8 +298,33 @@ sum(filter(housing_loss, date == end_date)$`Housing units`) /
 #   pull(Tenants) %>% 
 #   {. * vacancy_rate * (vacancy_rate - 1)}
 
+## Yearly principal_res vs Reserved status comparisons #########################
 
+R_2017 <- daily %>% 
+  filter(date >= seasonal_start - years(2), date <= seasonal_end - years(2), status == "R") %>% 
+  group_by(
+    property_ID %in%  filter(property, principal_res_2019 == TRUE)$property_ID) %>% 
+  count() %>% 
+  setNames(c("R_principal_res", "n"))
 
+R_2018 <- daily %>% 
+  filter(date >= seasonal_start - years(1), date <= seasonal_end - years(1), status == "R") %>% 
+  group_by(
+    property_ID %in%  filter(property, principal_res_2019 == TRUE)$property_ID) %>% 
+  count() %>% 
+  setNames(c("R_principal_res", "n"))
+
+R_2019 <- daily %>% 
+  filter(date >= seasonal_start, date <= seasonal_end, status == "R") %>% 
+  group_by(
+    property_ID %in%  filter(property, principal_res_2019 == TRUE)$property_ID) %>% 
+  count() %>% 
+  setNames(c("R_principal_res", "n"))
+
+## To find better way to visualize this
+R_2017
+R_2018
+R_2019
 
 
 
