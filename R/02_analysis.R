@@ -300,32 +300,24 @@ sum(filter(housing_loss, date == end_date)$`Housing units`) /
 
 ## Yearly principal_res vs Reserved status comparisons #########################
 
-R_2017 <- daily %>% 
-  filter(date >= seasonal_start - years(2), date <= seasonal_end - years(2), status == "R") %>% 
-  group_by(
-    property_ID %in%  filter(property, principal_res_2019 == TRUE)$property_ID) %>% 
-  count() %>% 
-  setNames(c("R_principal_res", "n"))
+reserved_vs_pr <- 
+  function(property, daily, start_date, end_date, 
+           group_var = principal_res_2019, field_name) {
+    
+    start_date <- as.Date(start_date, origin = "1970-01-01")
+    end_date <- as.Date(end_date, origin = "1970-01-01")
+    
+    reserved_pr <- 
+      daily %>% 
+      filter(date >= start_date, date <= end_date, status == "R") %>% 
+      count({{ field_name }} := property_ID %in%  
+              filter(property, {{ group_var }} == TRUE)$property_ID)
+    
+  }
 
-R_2018 <- daily %>% 
-  filter(date >= seasonal_start - years(1), date <= seasonal_end - years(1), status == "R") %>% 
-  group_by(
-    property_ID %in%  filter(property, principal_res_2019 == TRUE)$property_ID) %>% 
-  count() %>% 
-  setNames(c("R_principal_res", "n"))
-
-R_2019 <- daily %>% 
-  filter(date >= seasonal_start, date <= seasonal_end, status == "R") %>% 
-  group_by(
-    property_ID %in%  filter(property, principal_res_2019 == TRUE)$property_ID) %>% 
-  count() %>% 
-  setNames(c("R_principal_res", "n"))
-
-## To find better way to visualize this
-R_2017
-R_2018
-R_2019
-
+r_2019 <- reserved_vs_pr(property, daily, "2019-04-01", "2019-09-30", principal_res_2019, reserved_pr_2019)
+r_2018 <- reserved_vs_pr(property, daily, "2018-04-01", "2018-09-30", principal_res_2018, reserved_pr_2018)
+r_2017 <- reserved_vs_pr(property, daily, "2017-04-01", "2017-09-30", principal_res_2017, reserved_pr_2017)
 
 
 ## Save files #####################################
