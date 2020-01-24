@@ -300,24 +300,26 @@ sum(filter(housing_loss, date == end_date)$`Housing units`) /
 
 ## Yearly principal_res vs Reserved status comparisons #########################
 
-reserved_vs_pr <- 
-  function(property, daily, start_date, end_date, 
-           group_var = principal_res_2019, field_name) {
-    
+## Function to get comparisons
+reserved_vs_pr <-
+  function(property, daily, start_date, end_date, group_var, field_name) {
     start_date <- as.Date(start_date, origin = "1970-01-01")
     end_date <- as.Date(end_date, origin = "1970-01-01")
-    
-    reserved_pr <- 
-      daily %>% 
-      filter(date >= start_date, date <= end_date, status == "R") %>% 
-      count({{ field_name }} := property_ID %in%  
-              filter(property, {{ group_var }} == TRUE)$property_ID)
-    
+    daily %>%
+      filter(date >= start_date, date <= end_date, status == "R") %>%
+      count(!! field_name := property_ID %in%
+              filter(property, !! group_var == TRUE)$property_ID)
   }
 
-r_2019 <- reserved_vs_pr(property, daily, "2019-04-01", "2019-09-30", principal_res_2019, reserved_pr_2019)
-r_2018 <- reserved_vs_pr(property, daily, "2018-04-01", "2018-09-30", principal_res_2018, reserved_pr_2018)
-r_2017 <- reserved_vs_pr(property, daily, "2017-04-01", "2017-09-30", principal_res_2017, reserved_pr_2017)
+sd_vec <- c("2019" = "2019-04-01", "2018" = "2018-04-01", "2017" = "2017-04-01")
+ed_vec <- c("2019-09-30", "2018-09-30", "2017-09-30")
+gv_vec <- vars(principal_res_2019, principal_res_2018, principal_res_2017)
+
+## Use the function on all years to make a df
+# reserved_vs_pr_all <-
+pmap_dfr(list(sd_vec, ed_vec, gv_vec), ~{
+  reserved_vs_pr(property, daily, ..1, ..2, ..3, "principal_res")
+}, .id = "year")
 
 
 ## Save files #####################################
