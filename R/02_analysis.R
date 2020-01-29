@@ -91,10 +91,19 @@ filter(LTM_property, listing_type == "Entire home/apt") %>%
   sum(LTM_property$revenue_LTM, na.rm = TRUE)
 
 # YOY growth rate
+#2019
+nrow(filter(property, housing == TRUE)) / 
+  nrow(filter(property, created <= end_date, scraped >= end_date,
+              housing == TRUE))
+#2018
 nrow(filter(property, housing == TRUE)) / 
   nrow(filter(property, created <= end_date - years(1), scraped >= end_date - years(1),
               housing == TRUE))
 
+#2017
+nrow(filter(property, housing == TRUE)) / 
+  nrow(filter(property, created <= end_date - years(2), scraped >= end_date - years(2),
+              housing == TRUE))
 
 ### Charlottetown mapping prep ###################################################
 
@@ -321,6 +330,39 @@ pmap_dfr(list(sd_vec, ed_vec, gv_vec), ~{
   reserved_vs_pr(property, daily, ..1, ..2, ..3, "principal_res")
 }, .id = "year")
 
+## Read city files ##############################################################
+
+wards <- st_read("data/Charlottetown_Wards_2018/Charlottetown_Wards_2018.shp")
+
+property_GIS <- st_read("data/Property GIS Data/Property.shp")
+
+STR_zoning <- st_read("data/STR Data/Zoning.shp")
+
+STR_property <- st_read("data/STR Data/Property.shp")
+
+STR_property %>% 
+  filter(!(pi %in% property_GIS)) %>% 
+  view()
+
+zoning_file <- read_sf("data/STR Data/Zoning.shp")
+zoning_file %>%
+  ggplot() +
+  geom_sf(aes(fill = ZONING), colour = "transparent") +
+  theme(legend.position = "none")
+
+## Find building types #########################################################  
+
+property_GIS %>% 
+  filter(TOT_FAMILY == 4) %>% 
+  view()
+
+## Set crs for join wards to property file  ####################################
+
+st_crs(wards) <- 2954
+# st_transform(wards, crs = 2954)
+property <- st_transform(property, crs = 2954)
+#property <- 
+  st_join(property, wards)
 
 ## Save files #####################################
 save(active_listings_filtered, file = "data/active_listings_filtered.Rdata")
