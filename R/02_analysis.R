@@ -17,7 +17,7 @@ library(zoo)
 
 load("data/charlottetown.Rdata")
 
-# Load city files
+# City files
 
 wards <- st_read("data/Charlottetown_Wards_2018/Charlottetown_Wards_2018.shp")
 
@@ -124,13 +124,24 @@ filter(LTM_property, listing_type == "Entire home/apt") %>%
 
 # YOY growth rate
 #2019
-nrow(filter(property, housing == TRUE)) / 
-  nrow(filter(property, created <= end_date, scraped >= end_date,
+nrow(filter(property, housing == TRUE, created <= end_date, scraped >= end_date)) / 
+  nrow(filter(property, created <= end_date - years(1), scraped >= end_date - years(1),
               housing == TRUE))
 
-property %>% 
-  filter(housing == TRUE) %>% 
-  nrow()
+property %>%
+  st_drop_geometry() %>%
+  summarize(length(property_ID[housing == TRUE & created <= end_date & scraped >= end_date])) 
+
+property %>%
+  st_drop_geometry() %>%
+  summarize(length(property_ID[housing == TRUE & created <= end_date - years(1) &
+                                 scraped >= end_date - years(1)])) 
+
+property %>%  
+length(property_ID[housing == TRUE & created <= end_date & scraped >= end_date]) / 
+  length(property_ID[housing == TRUE & created <= end_date - years(1) &
+                       scraped >= end_date - years(1)])
+
 
 #2018
 nrow(filter(property, housing == TRUE)) / 
@@ -162,6 +173,45 @@ nrow(LTM_property)
 
 ### Listing type prevalence ####################################################
 
+# Listings by ward
+
+property %>% 
+  filter(housing == TRUE, created <= key_date, scraped >= key_date) %>% 
+  rename(`Listing type` = listing_type) %>% 
+  st_drop_geometry() %>% 
+  group_by(WARDNAME) %>% 
+  summarize(`Number of listings` = n(),
+            `Annual revenue` = sum(revenue_LTM, na.rm = TRUE),
+            `Rev. per listing` = `Annual revenue` / n(),
+            `Annual growth ratio` = as.numeric(length(property_ID[housing == TRUE &
+                              created <= end_date & scraped >= end_date]) / 
+                              length(property_ID[housing == TRUE & 
+                              created <= end_date - years(1) &
+                              scraped >= end_date - years(1)]))) %>% 
+  mutate(
+    `% of all listings` = round(`Number of listings` /
+                                  sum(`Number of listings`), 3),
+    `% of all listings` = paste0(100 * `% of all listings`, "%"),
+    `% of annual revenue` = `Annual revenue` / sum(`Annual revenue`),
+    `% annual growth` = paste0(round(100 * (`Annual growth ratio` - 1), 1), "%")
+    ) %>% 
+  mutate(
+    `Annual revenue` = round(`Annual revenue`),
+    `Annual revenue` = paste0("$", str_sub(`Annual revenue`, 1, -7), ".",
+                              str_sub(`Annual revenue`, -6, -6), " million"),
+    `% of annual revenue` = round(`% of annual revenue`, 3),
+    `% of annual revenue` = paste0(100 * `% of annual revenue`, "%"),
+    `Rev. per listing` = round(`Rev. per listing`),
+    `Rev. per listing` = paste0("$", str_sub(`Rev. per listing`, 1, -4),
+                                ",", str_sub(`Rev. per listing`, -3, -1))#,
+    # `% annual growth` = round(`% annual growth`)
+  ) %>% 
+  drop_na() %>% 
+  select(-"Annual growth ratio") %>% 
+  view() %>% 
+  write.table("output/tables/table_listings_wards.txt")
+
+# Listing types for city
 
   property %>% 
   filter(housing == TRUE, created <= key_date, scraped >= key_date) %>% 
@@ -187,6 +237,7 @@ nrow(LTM_property)
                                 ",", str_sub(`Rev. per listing`, -3, -1))
   ) %>% view() %>% 
   write.table("output/tables/table_listing_types.txt")
+
 
 
 ### Bedroom breakdown ##########################################################
@@ -367,7 +418,6 @@ gv_vec <- vars(principal_res_2019, principal_res_2018, principal_res_2017)
 pmap_dfr(list(sd_vec, ed_vec, gv_vec), ~{
   reserved_vs_pr(property, daily, ..1, ..2, ..3, "principal_res")
 }, .id = "year")
-
 
 
 
