@@ -420,11 +420,24 @@ pmap_dfr(list(sd_vec, ed_vec, gv_vec), ~{
 
 
 
-## Building types
+## Building types and zones
 
 property_GIS %>% 
   filter(TOT_FAMILY == 4) %>% 
   view()
+
+zoning <- #read_sf("data/STR Data/Zoning.shp") %>% 
+
+DMUN_zone <- zoning %>%
+  filter(ZONING == "DMUN") %>%    
+  plot()
+
+# TKTK add PZ? 
+hotel_zones <- c("C2", "C3", "MUVC", "DMU", "DMS", "DC", "M3", "WF", "MUC", "A")
+
+hotels <- zoning %>%
+  filter(ZONING %in% hotel_zones) %>%    
+  plot()
 
 
 
