@@ -20,22 +20,17 @@ load("data/charlottetown.Rdata")
 # City files
 
 wards <- st_read("data/Charlottetown_Wards_2018/Charlottetown_Wards_2018.shp")
+zoning <- read_sf("data/STR Data/Zoning.shp")
 
-property_GIS <- st_read("data/Property GIS Data/Property.shp")
+#property_GIS <- st_read("data/Property GIS Data/Property.shp")
+#STR_zoning <- st_read("data/STR Data/Zoning.shp")
+#STR_property <- st_read("data/STR Data/Property.shp")
 
-STR_zoning <- st_read("data/STR Data/Zoning.shp")
 
-STR_property <- st_read("data/STR Data/Property.shp")
-
-STR_property %>% 
-  filter(!(pi %in% property_GIS)) %>% 
-  view()
-
-zoning_file <- read_sf("data/STR Data/Zoning.shp")
-zoning_file %>%
-  ggplot() +
-  geom_sf(aes(fill = ZONING), colour = "transparent") +
-  theme(legend.position = "none")
+# zoning %>%
+#   ggplot() +
+#   geom_sf(aes(fill = ZONING), colour = "transparent") +
+#   theme(legend.position = "none")
 
 # Join wards to property file
 st_crs(wards) <- 2954
@@ -425,8 +420,6 @@ pmap_dfr(list(sd_vec, ed_vec, gv_vec), ~{
 property_GIS %>% 
   filter(TOT_FAMILY == 4) %>% 
   view()
-
-zoning <- #read_sf("data/STR Data/Zoning.shp") %>% 
 
 DMUN_zone <- zoning %>%
   filter(ZONING == "DMUN") %>%    
