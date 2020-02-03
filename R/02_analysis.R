@@ -38,7 +38,6 @@ zoning_file %>%
   theme(legend.position = "none")
 
 # Join wards to property file
-
 st_crs(wards) <- 2954
 # st_transform(wards, crs = 2954)
 property <- st_transform(property, crs = 2954)
