@@ -263,11 +263,32 @@ active_charlottetown <-
   property %>% 
   filter(housing == TRUE, created <= "2017-07-01", scraped >= "2017-07-01") %>% 
   st_drop_geometry() %>% 
-  count(GeoUID)
-  
-charlottetown_map <- 
+  count(GeoUID) %>% 
+  left_join(., filter(property, housing == TRUE, created <= "2017-07-01", scraped >= "2017-07-01"))
+
+DAs <- st_transform(DAs, crs = 2954)
+
+wards <- 
   DAs %>% 
-  left_join(main_charlottetown) %>% 
+  select(dwellings) %>% 
+  st_interpolate_aw(
+    wards, 
+    extensive = TRUE) %>% 
+  rename("WARD" = "Group.1") %>% 
+  st_drop_geometry() %>% 
+  left_join(., wards) %>% 
+  select(-Id)
+
+# TKTK error to fix here
+
+charlottetown_map <- 
+  property %>% 
+  filter(housing == TRUE, created <= end_date, created >= end_date - years(1),
+                          scraped <= end_date, scraped >= end_date - years(1)) %>% 
+  st_drop_geometry() %>% 
+  count(WARD) %>% 
+  drop_na() %>% 
+  left_join(., wards) #%>% 
   st_simplify(preserveTopology = TRUE, dTolerance = 5) %>%
   ggplot() +
   geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
