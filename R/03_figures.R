@@ -296,12 +296,12 @@ charlottetown_wards_map <-
   geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
                        na.value = "grey80",
-                       limits = c(0, 0.1),
+                       limits = c(0, 0.05),
                        oob = scales::squish,
                        labels = scales::percent) +
   coord_sf(expand = FALSE) +
   guides(fill = guide_colorbar(
-    title = "Active STRs as share of total dwellings")) +
+    title = "Active STRs as share of total dwellings by ward")) +
   theme(axis.line = element_blank(),
         axis.text.x = element_blank(),
         axis.text.y = element_blank(),
@@ -319,19 +319,19 @@ charlottetown_wards_map <-
   )
 
 
-  ggdraw(clip = "on") +
-  draw_plot(main_charlottetown) +
-  draw_plot(
-    {main_PEI +
-        gg_bbox(DAs_charlottetown,
-                expand = FALSE) +
-        theme(legend.position = "none")},
-    x = 0.58,
-    y = 0,
-    width = 0.46,
-    height = 0.46)
+  # ggdraw(clip = "on") +
+  # draw_plot(main_charlottetown) +
+  # draw_plot(
+  #   {main_PEI +
+  #       gg_bbox(DAs_charlottetown,
+  #               expand = FALSE) +
+  #       theme(legend.position = "none")},
+  #   x = 0.58,
+  #   y = 0,
+  #   width = 0.46,
+  #   height = 0.46)
 
-ggsave("output/figure_4.pdf", plot = charlottetown_map, width = 8,
+ggsave("output/figure_4.pdf", plot = charlottetown_wards_map, width = 8,
        height = 6.5, units = "in", useDingbats = FALSE)
 
 
@@ -342,10 +342,11 @@ charlottetown_DAs_map <-
          scraped <= end_date, scraped > end_date - years(1)) %>% 
   st_drop_geometry() %>% 
   count(GeoUID) %>% 
-  #drop_na() %>% 
+  drop_na() %>% 
   left_join(., DAs) %>% 
   st_as_sf() %>% 
   ggplot() +
+  geom_sf(data = DAs, fill = "grey80", color = "white") +
   geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
                        na.value = "grey80",
@@ -354,7 +355,7 @@ charlottetown_DAs_map <-
                        labels = scales::percent) +
   coord_sf(expand = FALSE) +
   guides(fill = guide_colorbar(
-    title = "Active STRs as share of total dwellings")) +
+    title = "Active STRs as share of total dwellings by Dissemination Area")) +
   theme(axis.line = element_blank(),
         axis.text.x = element_blank(),
         axis.text.y = element_blank(),
@@ -371,7 +372,7 @@ charlottetown_DAs_map <-
         # legend.text = element_text(family = "Futura", size = 10)
   )
 
-ggsave("output/figure_10.pdf", plot = charlottetown_DAs_map, width = 8,
+ggsave("output/figure_4b.pdf", plot = charlottetown_DAs_map, width = 8,
        height = 6.5, units = "in", useDingbats = FALSE)
 
 ### FIGURE 5 - bedroom breakdowns ##############################################
