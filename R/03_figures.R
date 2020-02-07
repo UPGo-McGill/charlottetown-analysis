@@ -118,7 +118,7 @@ active_listings_graph <-
   theme_minimal() +
   scale_y_continuous(name = NULL, label = scales::comma) +
   theme_minimal() +
-  scale_x_date(name = NULL, limits = c(as.Date("2016-05-08"), NA)) #+
+  scale_x_date(name = NULL, limits = c(as.Date("2017-01-01"), NA)) #+
   # theme(text = element_text(family = "Futura"))
 
 ggsave("output/figure_2.pdf", plot = active_listings_graph, width = 8, 
@@ -490,13 +490,16 @@ ggsave("output/figure_7.pdf", plot = ML_graph, width = 8, height = 6,
 
 # TKTK need housing_loss for this
 housing_graph <- 
-  ggplot(housing_loss) +
+  housing_loss %>% 
+  mutate(`Listing type` = factor(`Listing type`, 
+                  levels = c("Summer listings", "Private room", "Entire home/apt"))) %>% 
+  ggplot(aes(`Listing type`)) +
   geom_col(aes(date, `Housing units`, fill = `Listing type`),
            lwd = 0) +
   theme_minimal() +
-  scale_y_continuous(name = NULL, label = scales::comma, limits = c(0, 800)) +
+  scale_y_continuous(name = NULL, label = scales::comma, limits = c(0, 200)) +
   scale_x_date(name = NULL, limits = c(as.Date("2016-10-01"), NA)) +
-  scale_fill_manual(values = c("#9DBF9E", "#A84268")) +
+  #scale_fill_manual(values = c("#9DBF9E", "#A84268")) +
   theme(legend.position = "bottom", 
         # text = element_text(family = "Futura", face = "plain"),
         # legend.title = element_text(family = "Futura", face = "bold", 
