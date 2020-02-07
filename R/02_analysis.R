@@ -20,7 +20,7 @@ load("data/charlottetown.Rdata")
 # City files
 
 wards <- st_read("data/Charlottetown_Wards_2018/Charlottetown_Wards_2018.shp")
-zoning <- read_sf("data/STR Data/Zoning.shp")
+zones <- read_sf("data/STR Data/Zoning.shp")
 
 #property_GIS <- st_read("data/Property GIS Data/Property.shp")
 #STR_zoning <- st_read("data/STR Data/Zoning.shp")
@@ -41,8 +41,8 @@ property <-
 
 # Set up dates
 
-end_date <- as.Date("2019-11-30")
-key_date <- as.Date("2019-07-01")
+end_date <- as.Date("2019-12-31")
+key_date <- as.Date("2019-09-01")
 
 # Exchange rate (average over last twelve months)
 
@@ -81,9 +81,16 @@ canada_population <-
 nrow(filter(property, housing == TRUE, created <= key_date, scraped >= key_date))
 
 property %>% 
-  filter()
+  filter(housing == TRUE, created <= key_date, scraped >= key_date) %>% 
+  length(unique(host_ID))
+
+
 
 # Housing listings over the last twelve months
+
+LTM_property <- property %>% 
+  filter(housing == TRUE, created <= end_date, scraped >= end_date - years(1))
+
 nrow(LTM_property)
 
 # Listing type breakdown
@@ -100,21 +107,31 @@ length(unique(LTM_property$host_ID))
 LTM_property %>% 
   filter(listing_type == "Entire home/apt") %>% 
   select(host_ID) %>% 
-  st_drop_geometry() %>% 
+  #st_drop_geometry() %>% 
   unique() %>% 
   nrow()/
   length(unique(LTM_property$host_ID))
 
 # LTM revenue
 
-sum(LTM_property$revenue_LTM, na.rm = TRUE)
+LTM_revenue <- daily %>% 
+  filter(housing == TRUE,
+         date <= end_date, date >= end_date - years(1),
+         status == "R") %>% 
+  #st_drop_geometry() %>% 
+  group_by(property_ID) %>% 
+  summarize(revenue_LTM = sum(price)) %>% 
+  left_join(., LTM_property, na.rm = TRUE) 
+
+sum(LTM_revenue$revenue_LTM, na.rm = TRUE)
+
 
 # LTM revenue by property type
-filter(LTM_property, listing_type == "Entire home/apt") %>% 
+filter(LTM_revenue, listing_type == "Entire home/apt") %>% 
   select(revenue_LTM) %>% 
-  st_drop_geometry() %>% 
+  #st_drop_geometry() %>% 
   sum(na.rm = TRUE) /
-  sum(LTM_property$revenue_LTM, na.rm = TRUE)
+  sum(LTM_revenue$revenue_LTM, na.rm = TRUE)
 
 # YOY growth rate
 #2019
@@ -169,11 +186,12 @@ nrow(LTM_property)
 
 # Listings by ward
 
-property %>% 
+
+LTM_revenue %>% 
   filter(housing == TRUE, created <= key_date, scraped >= key_date) %>% 
   rename(`Listing type` = listing_type) %>% 
-  st_drop_geometry() %>% 
-  group_by(WARDNAME) %>% 
+  #st_drop_geometry() %>% 
+  group_by(ward) %>% 
   summarize(`Number of listings` = n(),
             `Annual revenue` = sum(revenue_LTM, na.rm = TRUE),
             `Rev. per listing` = `Annual revenue` / n(),
@@ -202,15 +220,20 @@ property %>%
   ) %>% 
   drop_na() %>% 
   select(-"Annual growth ratio") %>% 
+  mutate(
+    `% reservations from May-September` = c(0.7379253, 0.6388024, 0.7693436, 
+                                            0.8985275, 0.6794479, 0.7949283, 
+                                            0.6406896, 0.8268593, 0.7344935,
+                                            0.8138371)) %>% 
   view() %>% 
   write.table("output/tables/table_listings_wards.txt")
 
 # Listing types for city
 
-  property %>% 
-  filter(housing == TRUE, created <= key_date, scraped >= key_date) %>% 
+  LTM_revenue %>% 
+  filter(housing == TRUE, created <= end_date, scraped >= end_date - years(1)) %>% 
   rename(`Listing type` = listing_type) %>% 
-  st_drop_geometry() %>% 
+  #st_drop_geometry() %>% 
   group_by(`Listing type`) %>% 
   summarize(`Number of listings` = n(),
             `Annual revenue` = sum(revenue_LTM, na.rm = TRUE),
@@ -276,24 +299,29 @@ daily %>%
 
 ## Median host income
 
-LTM_property %>% 
-  filter(revenue_LTM > 0) %>% 
-  pull(revenue_LTM) %>% 
+LTM_revenue %>% 
+  filter(revenue_LTM > 0, !is.na(host_ID)) %>% 
+  group_by(host_ID) %>% 
+  summarize("host_rev" = sum(revenue_LTM)) %>% 
+  pull(host_rev) %>%
   quantile() %>% 
   as.list() %>% 
   as_tibble() %>% 
   select(-`0%`) %>% 
   set_names(c("25th percentile", "Median", "75th percentile", 
               "100th percentile")) %>% 
-  mutate_all(round, -2)
+  mutate_all(round, -2) %>% 
+  drop_na()
 
 ## Top earning host(s)
 
-LTM_property %>% 
+# TKTK 
+LTM_revenue %>% 
   group_by(host_ID) %>% 
-  summarise(host_rev = sum(revenue_LTM)) %>% 
+  summarize(host_rev = sum(revenue_LTM)) %>% 
   filter(host_rev>0) %>% 
-  arrange(-host_rev)
+  arrange(-host_rev) %>% 
+  drop_na()
 
 ## Multilistings
 
@@ -329,8 +357,8 @@ FREH %>%
   ggplot() +
   geom_line(aes(date, n), colour = "black", size = 1) +
   theme_minimal() +
-  scale_y_continuous(name = NULL, label = scales::comma) +
-  ggtitle("FREH listings in Charlottetown")
+  scale_y_continuous(name = NULL, label = comma) +
+  ggtitle("FREH listings in Halifax Regional Municipality")
 
 GH %>% 
   st_drop_geometry() %>% 
@@ -339,38 +367,124 @@ GH %>%
   ggplot() +
   geom_line(aes(date, GH_units), colour = "black", size = 1) +
   theme_minimal() +
-  scale_y_continuous(name = NULL, label = scales::comma) +
-  ggtitle("Units converted to ghost hostels in Charlottetown")
+  scale_y_continuous(name = NULL, label = comma) +
+  ggtitle("Units converted to ghost hostels in Halifax Regional Municipality")
 
-GH_total <- 
-  GH %>% 
-  st_drop_geometry() %>% 
-  group_by(date) %>% 
-  summarize(GH_units = sum(housing_units)) %>% 
-  pull(GH_units) %>% 
-  rollmean(30, align = "right") # TKTK zoo() 
+GH_total <-
+  GH %>%
+  st_drop_geometry() %>%
+  group_by(date) %>%
+  summarize(GH_units = sum(housing_units)) %>%
+  mutate(GH_average = frollmean(GH_units, 30, align = "right")) %>%
+  mutate(GH_average = if_else(is.na(GH_average), 8, GH_average)) %>%
+  select(-GH_units)
 
-#TKTK error 
-GH_total <- GH_total[(length(GH_total) + 1 - 
-                        n_groups(FREH %>% group_by(date))):length(GH_total)]
-
-# TKTK error from missing GH_total
-housing_loss <- 
-  FREH %>% 
-  group_by(date) %>% 
-  summarize(`Entire home/apt` = n()) %>% 
-  mutate(`Private room` = as.integer(GH_total)) %>% 
+housing_loss <-
+  FREH %>%
+  group_by(date) %>%
+  summarize(`Entire home/apt` = n()) %>%
+  left_join(GH_total, by = "date") %>%
+  rename(`Private room` = GH_average) %>%
+  mutate("summer_active" = case_when(
+    (date >= season_start & date <= season_end) ~  seasonal_loss_2019, 
+    (date >= season_start - years(1) & date <= season_end - years(1)) ~ seasonal_loss_2018, 
+    (date >= season_start - years(2) & date <= season_end - years(2)) ~ seasonal_loss_2017, 
+    TRUE ~ 0)) %>% 
   gather(`Entire home/apt`, `Private room`, key = `Listing type`,
-         value = `Housing units`)
+         value = `Housing units`) 
 
-#TKTK error: need to fix housing loss
+housing_loss <-
+  FREH %>%
+  group_by(date) %>%
+  summarize(`Entire home/apt` = n()) %>%
+  left_join(GH_total, by = "date") %>%
+  rename(`Private room` = GH_average) %>%
+  mutate(`Summer listings` = case_when(
+    (date >= season_start & date <= season_end) ~  seasonal_loss_2019,
+    (date >= season_start - years(1) & date <= season_end - years(1)) ~ seasonal_loss_2018,
+    (date >= season_start - years(2) & date <= season_end - years(2)) ~ seasonal_loss_2017,
+    TRUE ~ 0)) %>% 
+gather(`Entire home/apt`, `Private room`, `Summer listings`, key = `Listing type`,
+       value = `Housing units`) 
 
 # Current housing loss figure
 sum(filter(housing_loss, date == end_date)$`Housing units`)
 
+## Daily graphs:
+
+GH %>% 
+  filter(date == key_date) %>% 
+  count()
+
+# GH_total <- 
+#   GH %>% 
+#   st_drop_geometry() %>% 
+#   #group_by(date) %>% 
+#   summarize(GH_2019 = sum(housing_units[date <= end_date & date >= end_date - years(1)]),
+#             GH_2018 = sum(housing_units[date <= end_date - years(1) & date >= end_date - years(2)]),
+#             GH_2017 = sum(housing_units[date <= end_date - years(2) & date >= end_date - years(3)])) %>% 
+#   mutate(
+#     `GH_2019` = as.numeric(sum(`GH_2019`)/365),
+#     `GH_2018` = as.numeric(sum(`GH_2018`)/365),
+#     `GH_2017` = as.numeric(sum(`GH_2017`)/365)) 
+
+# Seasonal housing loss
+
+# 2019
+FREH_season_2019 <- FREH %>% 
+  filter(date >= season_start & date <= season_end)
+
+seasonal_loss_2019 <- 
+  as.numeric(nrow(filter(property, seasonal_2019 == TRUE)) - property %>% 
+  filter(seasonal_2019 == TRUE & (property_ID %in% FREH_season_2019$property_ID)) %>% 
+  nrow())
+
+#2018
+FREH_season_2018 <- FREH %>% 
+  filter(date >= season_start - years(1) & date <= season_end - years(1))
+
+seasonal_loss_2018 <- 
+  as.numeric(nrow(filter(property, seasonal_2018 == TRUE)) - property %>% 
+  filter(seasonal_2018 == TRUE & (property_ID %in% FREH_season_2018$property_ID)) %>% 
+  nrow())
+
+#2017
+FREH_season_2017 <- FREH %>% 
+  filter(date >= season_start - years(2) & date <= season_end - years(2))
+
+seasonal_loss_2017 <- 
+  as.numeric(nrow(filter(property, seasonal_2017 == TRUE)) - (property %>% 
+  filter(seasonal_2017 == TRUE & (property_ID %in% FREH_season_2017$property_ID)) %>% 
+  nrow()))
+
+# Housing loss 2019
+  
+loss_2019 <- (FREH %>% 
+  filter(property_ID %in% filter(property, housing == TRUE)$property_ID, 
+         date >= end_date - years(1), date <= end_date) %>% 
+  nrow()/365) + sum(GH_total$GH_2019) + as.numeric(seasonal_loss_2019)
+  
+
+# Housing loss 2018
+  
+loss_2018 <- (FREH %>% 
+  filter(property_ID %in% filter(property, housing == TRUE)$property_ID,
+         date >= end_date - years(2), date <= end_date - years(1)) %>% 
+  nrow()/365) + sum(GH_total$GH_2018) + (seasonal_loss_2018)
+
+# Housing loss 2017
+
+loss_2017 <- (FREH %>% 
+    filter(property_ID %in% filter(property, housing == TRUE)$property_ID,
+           date >= end_date - years(3), date <= end_date - years(2)) %>% 
+    nrow()/365) + sum(GH_total$GH_2017) + seasonal_loss_2017
+
+
+
+
 # YOY increase
-sum(filter(housing_loss, date == end_date)$`Housing units`) /
-  sum(filter(housing_loss, date == end_date - years(1))$`Housing units`)
+# sum(filter(housing_loss, date == end_date)$`Housing units`) /
+#   sum(filter(housing_loss, date == end_date - years(1))$`Housing units`)
 
 
 ## Relate housing loss to rental vacancy rate
