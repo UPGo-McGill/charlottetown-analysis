@@ -266,30 +266,32 @@ active_charlottetown <-
   count(GeoUID) %>% 
   left_join(., filter(property, housing == TRUE, created <= "2017-07-01", scraped >= "2017-07-01"))
 
-DAs <- st_transform(DAs, crs = 2954)
-
-wards <- 
-  DAs %>% 
-  select(dwellings) %>% 
-  st_interpolate_aw(
-    wards, 
-    extensive = TRUE) %>% 
-  rename("WARD" = "Group.1") %>% 
-  st_drop_geometry() %>% 
-  left_join(., wards) %>% 
-  select(-Id)
+# DAs <- 
+#   DAs %>% 
+#   st_set_crs(2954) %>% 
+#   st_transform(32620)
+# 
+# wards <- 
+#   DAs %>% 
+#   select(dwellings) %>% 
+#   st_interpolate_aw(
+#     wards, 
+#     extensive = TRUE) %>% 
+#   #rename("WARD" = "Group.1") %>% 
+#   st_drop_geometry() %>% 
+#   left_join(., wards)
 
 # TKTK error to fix here
 
-charlottetown_map <- 
+charlottetown_wards_map <- 
   property %>% 
-  filter(housing == TRUE, created <= end_date, created >= end_date - years(1),
-                          scraped <= end_date, scraped >= end_date - years(1)) %>% 
+  filter(housing == TRUE, created <= end_date, created > end_date - years(1),
+                          scraped <= end_date, scraped > end_date - years(1)) %>% 
   st_drop_geometry() %>% 
-  count(WARD) %>% 
+  count(ward) %>% 
   drop_na() %>% 
-  left_join(., wards) #%>% 
-  st_simplify(preserveTopology = TRUE, dTolerance = 5) %>%
+  left_join(., wards) %>% 
+  st_as_sf() %>% 
   ggplot() +
   geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
@@ -317,70 +319,60 @@ charlottetown_map <-
   )
 
 
-  # ggdraw(clip = "on") +
-  # draw_plot(main_charlottetown) +
-  # draw_plot(
-  #   {main_PEI +
-  #       gg_bbox(DAs_charlottetown,
-  #               expand = FALSE) +
-  #       theme(legend.position = "none")},
-  #   x = 0.58,
-  #   y = 0,
-  #   width = 0.46,
-  #   height = 0.46)
+  ggdraw(clip = "on") +
+  draw_plot(main_charlottetown) +
+  draw_plot(
+    {main_PEI +
+        gg_bbox(DAs_charlottetown,
+                expand = FALSE) +
+        theme(legend.position = "none")},
+    x = 0.58,
+    y = 0,
+    width = 0.46,
+    height = 0.46)
 
 ggsave("output/figure_4.pdf", plot = charlottetown_map, width = 8,
        height = 6.5, units = "in", useDingbats = FALSE)
 
-# PEI MAPS
 
-# main_PEI <-
-#   DAs_PEI %>% 
-#   st_simplify(preserveTopology = TRUE, dTolerance = 5) %>%
-#   ggplot() +
-#   geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
-#   scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
-#                        na.value = "grey80",
-#                        limits = c(0, 0.1),
-#                        oob = scales::squish,
-#                        labels = scales::percent) +
-#   coord_sf(expand = FALSE) +
-#   guides(fill = guide_colorbar(
-#     title = "Active STRs as share of total dwellings")) +
-#   theme(axis.line = element_blank(),
-#         axis.text.x = element_blank(),
-#         axis.text.y = element_blank(),
-#         axis.ticks = element_blank(),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank(),
-#         panel.background = element_blank(),
-#         panel.border = element_blank(),
-#         legend.justification = c(0, 1),
-#         legend.position = c(0, .95),
-#         # text = element_text(family = "Futura", face = "plain"),
-#         # legend.title = element_text(family = "Futura", face = "bold",
-#         #                             size = 10),
-#         # legend.text = element_text(family = "Futura", size = 10)
-#         )
-# 
-# PEI_map <-
-#   ggdraw(clip = "on") +
-#   draw_plot(main_PEI) +
-#   draw_plot(
-#     {main_PEI +
-#         gg_bbox(DAs_charlottetown,
-#                 expand = FALSE) +
-#         theme(legend.position = "none")},
-#     x = 0.58,
-#     y = 0,
-#     width = 0.46,
-#     height = 0.46)
-# 
-# ggsave("output/figure_4.pdf", plot = PEI_map, width = 8,
-#        height = 6.5, units = "in", useDingbats = FALSE)
+## DA active listings 
+charlottetown_DAs_map <- 
+  property %>% 
+  filter(housing == TRUE, created <= end_date, created > end_date - years(1),
+         scraped <= end_date, scraped > end_date - years(1)) %>% 
+  st_drop_geometry() %>% 
+  count(GeoUID) %>% 
+  #drop_na() %>% 
+  left_join(., DAs) %>% 
+  st_as_sf() %>% 
+  ggplot() +
+  geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
+  scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
+                       na.value = "grey80",
+                       limits = c(0, 0.1),
+                       oob = scales::squish,
+                       labels = scales::percent) +
+  coord_sf(expand = FALSE) +
+  guides(fill = guide_colorbar(
+    title = "Active STRs as share of total dwellings")) +
+  theme(axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        legend.justification = c(0, 1),
+        legend.position = c(0, .95),
+        # text = element_text(family = "Futura", face = "plain"),
+        # legend.title = element_text(family = "Futura", face = "bold",
+        #                             size = 10),
+        # legend.text = element_text(family = "Futura", size = 10)
+  )
 
-
-
+ggsave("output/figure_10.pdf", plot = charlottetown_DAs_map, width = 8,
+       height = 6.5, units = "in", useDingbats = FALSE)
 
 ### FIGURE 5 - bedroom breakdowns ##############################################
 
