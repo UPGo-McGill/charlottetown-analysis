@@ -608,6 +608,21 @@ loss_2017 <- (FREH %>%
 
 ## SCENARIO ANALYSIS ###########################################################
 
+# Re-do principal_res for all of 2019
+# property <-
+#   property %>%
+#   select(-(principal_res_2019:principal_res_2017))
+# 
+# 
+# property <-
+#   property %>%
+#   strr_principal_residence(daily, FREH, GH, "2019-01-01", "2019-12-31",
+#                            principal_res_2019, 0.5) %>%
+#   strr_principal_residence(daily, FREH, GH, "2018-01-01", "2018-12-31",
+#                            principal_res_2018, 0.5) %>%
+#   strr_principal_residence(daily, FREH, GH, "2017-01-01", "2017-12-31",
+#                            principal_res_2017, 0.5)
+
 # Total nights "R" in 2019
 daily %>%
   filter(housing, date > end_date - years(1), status == "R") %>%
