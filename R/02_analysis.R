@@ -11,6 +11,7 @@ library(lubridate)
 library(cancensus)
 library(scales)
 library(zoo)
+library(data.table)
 
 
 # Load data file
@@ -120,6 +121,43 @@ LTM_property <-
   left_join(LTM_property, .)
 
 sum(LTM_property$revenue_LTM, na.rm = TRUE)
+
+# Principal residence revenue
+
+property %>%
+  st_drop_geometry() %>%
+  filter(housing, created <= key_date, scraped >= key_date, principal_res_2019 == TRUE) 
+
+property %>%
+  st_drop_geometry() %>%
+  filter(housing, created <= end_date, scraped > end_date - years(1)) %>% 
+  filter(principal_res_2019)
+
+sep1_pr_propertyID <- 
+  property %>%
+  st_drop_geometry() %>%
+  filter(housing, created <= key_date, scraped >= key_date, principal_res_2019 == FALSE) %>% 
+  pull(property_ID)
+  
+LTM_pr <-
+  daily %>%
+  filter(housing == TRUE,
+         date <= end_date, date > end_date - years(1),
+         status == "R") %>%
+  group_by(property_ID) %>%
+  summarize(revenue_PR = sum(price) * exchange_rate) %>%
+  left_join(., property) #%>% 
+  #filter(principal_res_2019 == TRUE)
+
+sum(LTM_pr$revenue_PR, na.rm = TRUE)
+
+LTM_pr_revenue <- 
+  LTM_pr %>% 
+  filter(property_ID %in% sep1_pr_propertyID) 
+
+sum(LTM_pr_revenue$revenue_PR, na.rm = TRUE)
+
+length(unique(LTM_pr$host_ID))
 
 
 # LTM revenue by property type
@@ -361,7 +399,11 @@ ML_table <-
   gather(Listings, Revenue, key = `Multilisting percentage`, value = Value)
 
 ML_table %>% 
-  filter(date == end_date)
+  filter(date == key_date)
+
+property %>% 
+  filter(housing, created <= key_date, scraped >= key_date) %>% 
+  summarize(mean(principal_res_2019))
 
 # Entire home multilistings
 
@@ -370,6 +412,12 @@ daily %>%
   group_by(date) %>% 
   summarize(Listings = sum(ML)) %>% 
   filter(date == end_date)
+
+# Principal residences
+
+property %>% 
+  filter(housing, created <= key_date, scraped >= key_date, principal_res_2019 == FALSE) %>% 
+  nrow()
 
 
 ### Housing loss ###############################################################
@@ -384,7 +432,7 @@ FREH %>%
   geom_line(aes(date, n), colour = "black", size = 1) +
   theme_minimal() +
   scale_y_continuous(name = NULL, label = comma) +
-  ggtitle("FREH listings in Halifax Regional Municipality")
+  ggtitle("FREH listings in Charlottetown")
 
 GH %>% 
   st_drop_geometry() %>% 
@@ -394,7 +442,7 @@ GH %>%
   geom_line(aes(date, GH_units), colour = "black", size = 1) +
   theme_minimal() +
   scale_y_continuous(name = NULL, label = comma) +
-  ggtitle("Units converted to ghost hostels in Halifax Regional Municipality")
+  ggtitle("Units converted to ghost hostels in Charlottetown")
 
 GH_total <-
   GH %>%
@@ -441,20 +489,6 @@ housing_loss <-
   summarize(`Entire home/apt` = n()) %>%
   left_join(GH_total, by = "date") %>%
   rename(`Private room` = GH_average) %>%
-  mutate("summer_active" = case_when(
-    (date >= season_start & date <= season_end) ~  seasonal_loss_2019, 
-    (date >= season_start - years(1) & date <= season_end - years(1)) ~ seasonal_loss_2018, 
-    (date >= season_start - years(2) & date <= season_end - years(2)) ~ seasonal_loss_2017, 
-    TRUE ~ 0)) %>% 
-  gather(`Entire home/apt`, `Private room`, key = `Listing type`,
-         value = `Housing units`) 
-
-housing_loss <-
-  FREH %>%
-  group_by(date) %>%
-  summarize(`Entire home/apt` = n()) %>%
-  left_join(GH_total, by = "date") %>%
-  rename(`Private room` = GH_average) %>%
   mutate(`Summer listings` = case_when(
     (date >= season_start & date <= season_end) ~  seasonal_loss_2019,
     (date >= season_start - years(1) & date <= season_end - years(1)) ~ seasonal_loss_2018,
@@ -466,27 +500,85 @@ gather(`Entire home/apt`, `Private room`, `Summer listings`, key = `Listing type
 # Current housing loss figure
 sum(filter(housing_loss, date == end_date)$`Housing units`)
 
+# Scenario Housing loss
+
+## TKTK GH number needs to be checked
+#scenario1
+  (FREH %>% 
+                filter(property_ID %in% filter(property, housing == TRUE)$property_ID, 
+                       date > end_date - years(1), date <= end_date, 
+                       property_ID %in%   (filter(property, scenario_1)$property_ID)) %>% 
+                nrow()/365) + #sum(GH_total$GH_2019) #+ as.numeric(seasonal_loss_2019)
+
+# scenario2
+  (FREH %>% 
+                          filter(property_ID %in% filter(property, housing == TRUE)$property_ID, 
+                                 date > end_date - years(1), date <= end_date, 
+                                 property_ID %in%   (filter(property, scenario_2)$property_ID)) %>% 
+                          nrow()/365) #+ sum(GH_total$GH_2019) #+ as.numeric(seasonal_loss_2019)
+
+# scenario3
+  (FREH %>% 
+                          filter(property_ID %in% filter(property, housing == TRUE)$property_ID, 
+                                 date > end_date - years(1), date <= end_date, 
+                                 property_ID %in%   (filter(property, scenario_3)$property_ID)) %>% 
+                          nrow()/365) #+ sum(GH_total$GH_2019) #+ as.numeric(seasonal_loss_2019)
+
+# scenario4
+  (FREH %>% 
+                          filter(property_ID %in% filter(property, housing == TRUE)$property_ID, 
+                                 date > end_date - years(1), date <= end_date, 
+                                 property_ID %in%   (filter(property, scenario_4)$property_ID)) %>% 
+                          nrow()/365) #+ sum(GH_total$GH_2019) #+ as.numeric(seasonal_loss_2019)
+
+# scenario5
+  (FREH %>% 
+                          filter(property_ID %in% filter(property, housing == TRUE)$property_ID, 
+                                 date > end_date - years(1), date <= end_date, 
+                                 property_ID %in%   (filter(property, scenario_5)$property_ID)) %>% 
+                          nrow()/365) #+ sum(GH_total$GH_2019) #+ as.numeric(seasonal_loss_2019)
+
+
+# Seasonal scenarios
+
+# scenario 1
+property %>%
+  filter(seasonal_2019,
+         !property_ID %in% FREH_season_2019$property_ID,
+         scenario_1)
+
+# scenario 2
+property %>%
+  filter(seasonal_2019,
+         !property_ID %in% FREH_season_2019$property_ID,
+         scenario_2)
+
+# scenario 3
+property %>%
+  filter(seasonal_2019,
+         !property_ID %in% FREH_season_2019$property_ID,
+         scenario_3)
+
+# scenario 4
+property %>%
+  filter(seasonal_2019,
+         !property_ID %in% FREH_season_2019$property_ID,
+         scenario_4)
+
+# scenario 5
+property %>%
+  filter(seasonal_2019,
+         !property_ID %in% FREH_season_2019$property_ID,
+         scenario_5)
+
 ## Daily graphs:
 
 GH %>% 
   filter(date == key_date) %>% 
   count()
 
-# GH_total <- 
-#   GH %>% 
-#   st_drop_geometry() %>% 
-#   #group_by(date) %>% 
-#   summarize(GH_2019 = sum(housing_units[date <= end_date & date >= end_date - years(1)]),
-#             GH_2018 = sum(housing_units[date <= end_date - years(1) & date >= end_date - years(2)]),
-#             GH_2017 = sum(housing_units[date <= end_date - years(2) & date >= end_date - years(3)])) %>% 
-#   mutate(
-#     `GH_2019` = as.numeric(sum(`GH_2019`)/365),
-#     `GH_2018` = as.numeric(sum(`GH_2018`)/365),
-#     `GH_2017` = as.numeric(sum(`GH_2017`)/365)) 
-
-
-
 # Total housing loss numbers 
+
 # Housing loss 2019
   
 loss_2019 <- (FREH %>% 
@@ -512,6 +604,88 @@ loss_2017 <- (FREH %>%
 # YOY increase
 # sum(filter(housing_loss, date == end_date)$`Housing units`) /
 #   sum(filter(housing_loss, date == end_date - years(1))$`Housing units`)
+
+
+## SCENARIO ANALYSIS ###########################################################
+
+# Total nights "R" in 2019
+daily %>%
+  filter(housing, date > end_date - years(1), status == "R") %>%
+  count(property_ID) %>% 
+  summarize(sum(n))
+
+
+daily %>% 
+  filter(housing, date > end_date - years(1), status == "R") %>% 
+  count(property_ID) %>% 
+  left_join(property %>% 
+              filter(housing, created <= end_date, scraped > end_date - years(1)) %>% 
+              filter(scenario_1),
+            .) %>% 
+  pull(n) %>% 
+  sum(na.rm = TRUE)
+
+# Remaining listings (scenario_x = TRUE)
+
+sc1_prop <- 
+  property %>% 
+  filter(housing, created <= end_date, scraped > end_date - years(1)) %>% 
+  filter(scenario_1)
+
+sc2_prop <- 
+  property %>% 
+  filter(housing, created <= end_date, scraped > end_date - years(1)) %>% 
+  filter(scenario_2)
+
+sc3_prop <- 
+  property %>% 
+  filter(housing, created <= end_date, scraped > end_date - years(1)) %>% 
+  filter(scenario_2)
+
+sc4_prop <- 
+  property %>% 
+  filter(housing, created <= end_date, scraped > end_date - years(1)) %>% 
+  filter(scenario_2)
+
+sc5_prop <- 
+  property %>% 
+  filter(housing, created <= end_date, scraped > end_date - years(1)) %>% 
+  filter(scenario_2)
+
+# Scenario 1
+daily %>% 
+  filter(housing, date > end_date - years(1), status == "R") %>% 
+  filter(!property_ID %in% sc1_prop$property_ID)
+
+# Scenario 2
+daily %>% 
+  filter(housing, date > end_date - years(1), status == "R") %>% 
+  filter(!property_ID %in% sc2_prop$property_ID)
+
+# Scenario 3
+daily %>% 
+  filter(housing, date > end_date - years(1), status == "R") %>% 
+  filter(!property_ID %in% sc3_prop$property_ID)
+
+# Scenario 4
+daily %>% 
+  filter(housing, date > end_date - years(1), status == "R") %>% 
+  filter(!property_ID %in% sc4_prop$property_ID)
+
+# Scenario 5
+daily %>% 
+  filter(housing, date > end_date - years(1), status == "R") %>% 
+  filter(!property_ID %in% sc5_prop$property_ID)
+
+
+# Table calculations (# missing nights divided by remaining listings)
+(56664 - 36444) / 438
+(56664 - 33488) / 497
+(56664 - 33500) / 469
+(56664 - 31200) / 519
+(56664 - 28400) / 542
+
+
 
 
 ## Relate housing loss to rental vacancy rate
