@@ -62,23 +62,11 @@ streets <-
 DAs <-
   cancensus::get_census(
     dataset = "CA16", regions = list(CSD = "1102075"), level = "DA",
-    vectors = c("v_CA16_2398", "v_CA16_5078", "v_CA16_4888", "v_CA16_6695",
-                "v_CA16_4837", "v_CA16_4838", "v_CA16_512", 
-                "v_CA16_3393", "v_CA16_3996"),
     geo_format = "sf") %>% 
   st_transform(32620) %>% 
-  select(GeoUID, CSD_UID, Population, Dwellings, contains("v_CA")) %>% 
-  set_names(c("GeoUID", "CMA_UID", "population", "dwellings", "med_income",
-    "university_education", "housing_need", "non_mover", "owner_occupier", 
-    "rental", "official_language", "citizen", "white", "geometry")) %>% 
-  st_set_agr("constant") %>% 
-  mutate_at(
-    .vars = c("university_education", "non_mover", 
-              "official_language", "citizen", "white"),
-    .funs = list(`pct_pop` = ~{. / population})) %>% 
-  mutate_at(
-    .vars = c("housing_need", "owner_occupier", "rental"),
-    .funs = list(`pct_dwellings` = ~{. / dwellings}))
+  select(GeoUID, CSD_UID, Population, Dwellings) %>% 
+  set_names(c("GeoUID", "CMA_UID", "population", "dwellings")) %>% 
+  st_set_agr("constant")
 
 
 ### Import data from city ######################################################
@@ -163,18 +151,6 @@ host <-
     )
   ) %>% 
   ggmap::mutate_geocode(address)
-
-
-## Import permit data
-
-permits_2019 <- 
-  read_excel("data/permits.xlsx", sheet = 1)
-  
-permits_2018 <- 
-  read_excel("data/permits.xlsx", sheet = 2, skip = 1)
-
-permits_2017 <- 
-  read_excel("data/permits.xlsx", sheet = 3)
 
 
 ### Import STR data ############################################################
@@ -263,7 +239,7 @@ property_remain <-
          !property_ID %in% property_join$property_ID,
          !property_ID %in% property_ptype$property_ID) %>% 
   strr_raffle(mutate(parcels, TOT_FAMILY2 = as.integer(TOT_FAMILY)), TOT_FAMILY, 
-              TOT_FAMILY2) %>% 
+              TOT_FAMILY2, seed = 1) %>% 
   mutate(parcel_units = as.integer(TOT_FAMILY)) %>% 
   select(-geometry, everything(), geometry, -TOT_FAMILY)
 
@@ -321,7 +297,7 @@ property_exact <-
 property_raffle <-
   property %>% 
   filter(!property_ID %in% property_exact$property_ID) %>% 
-  strr_raffle(DAs, GeoUID, dwellings) 
+  strr_raffle(DAs, GeoUID, dwellings, seed = 1) 
 
 property <-
   data.table::rbindlist(list(
@@ -491,11 +467,11 @@ strr_principal_residence <-
 property <- 
   property %>% 
   strr_principal_residence(daily, FREH, GH, "2019-05-01", "2019-09-30", 
-                           principal_res_2019, 0.25) %>% 
+                           principal_res_2019, 0.5) %>% 
   strr_principal_residence(daily, FREH, GH, "2018-05-01", "2018-09-30", 
-                           principal_res_2018, 0.25) %>% 
+                           principal_res_2018, 0.5) %>% 
   strr_principal_residence(daily, FREH, GH, "2017-05-01", "2017-09-30", 
-                           principal_res_2017, 0.25)
+                           principal_res_2017, 0.5)
 
 
 ### Add seasonal fields ########################################################
@@ -555,6 +531,5 @@ property <-
 ### Save files #################################################################
 
 save(city, daily, DAs, FREH, GH, host, ML_daily, ML_property, parcels,
-     permits_2017, permits_2018, permits_2019, property, registration,
-     streets, wards, zones, end_date, exchange_rate, season_end, season_start,
-     file = "data/charlottetown.Rdata")
+     property, registration, streets, wards, zones, end_date, exchange_rate, 
+     season_end, season_start, file = "data/charlottetown.Rdata")
