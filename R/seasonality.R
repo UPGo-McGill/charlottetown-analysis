@@ -28,6 +28,23 @@ seasonality_maker <- function(daily, end_date) {
 seasonality <- 
   seasonality_maker(daily, end_date)
 
+seasonality_2018 <- 
+  seasonality_maker(daily, end_date - years(1))
+
+seasonality_ward <- 
+  daily %>% 
+  left_join(select(st_drop_geometry(property), property_ID, ward)) %>% 
+  filter(!is.na(ward)) %>% 
+  group_split(ward) %>% 
+  map(seasonality_maker, end_date)
+
+map(seasonality_ward, ~{
+  sum(.x$season_book[5:9])
+})
+
+
+
+
 
 # Plot
 # figure_seasonality <-
@@ -37,7 +54,16 @@ seasonality <-
             colour = "red") +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
   xlab("Month")+
-  ylab("Percentage of revenue")+
+  ylab("Percentage of revenue")
+  
+  
+
+sum(seasonality$season_book[5:9])
+sum(seasonality$season_rev[5:9])
+
+sum(seasonality_2018$season_book[5:9])
+sum(seasonality_2018$season_rev[5:9])
+
 
 
 
@@ -71,8 +97,6 @@ daily_Canada <-
 save(daily_Canada, file = "daily_Canada.Rdata")
 
 
-##
-daily_Canada %>% filter(city == "Ottawa") %>% seasonality_maker(end_date)
 
 
 seasonality_Canada <- 
@@ -91,12 +115,26 @@ seasonality_Canada <-
   map_dfr(seasonality_maker, end_date, .id = "city")
 
 seasonality_Canada %>% 
-  filter(city != 15) %>% 
-ggplot() +
-  geom_smooth(aes(month, season_book, group = city), lwd = 1.5, alpha = 0.2,
-              colour = alpha("grey10", 0.2), se = FALSE) +
-  geom_smooth(aes(month, season_book, group = 1), data = seasonality, lwd = 1.5,
-            colour = "blue", alpha = 0.8, se = FALSE)
+  filter(city != 15) %>%
+  ggplot() +
+  geom_line(
+    aes(month, season_book, group = city), 
+    lwd = 1.5, 
+    alpha = 0.2,
+    colour = alpha("grey10", 0.2), 
+    se = FALSE
+    ) +
+  geom_line(
+    aes(month, season_book, group = 1), 
+    data = seasonality, 
+    lwd = 1.5,
+    colour = "blue", 
+    alpha = 0.8, 
+    se = FALSE
+    ) +
+  scale_y_continuous(name = "", labels = scales::percent) +
+  scale_x_discrete(name = "") +
+  theme_minimal()
 
 
 install.packages("gghighlight")

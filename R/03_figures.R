@@ -1,388 +1,144 @@
-#### CHARLOTTETOWN ANALYSIS ##########################################################
+#### CHARLOTTETOWN FIGURES #####################################################
 
-# load("data/active_listings_filtered.Rdata")
-# load("data/charlottetown_property.Rdata")
-# load("data/charlottetown.Rdata")
-# load("data/charlottetown_daily.Rdata")
-# #load("data/housing_loss.Rdata")
-# #load("data/airbnb_neighbourhoods.Rdata")
-# load("data/charlottetown_streets.Rdata")
-# load("data/charlottetown_GH.Rdata")
-# load("data/charlottetown_FREH.Rdata")
-# load("data/DAs_charlottetown.Rdata")
-# #load("data/neighbourhoods.Rdata")
-# load("data/legal.Rdata")
-
-# Set up dates
-end_date <- as.Date("2019-10-31")
-
-# Exchange rate (average over last twelve months)
-
-# OLD EXCHANGE RATE
-# exchange_rate <- mean(1.3037, 1.3010, 1.3200,
-#                       1.3432, 1.3301, 1.3206, 
-#                       1.3368, 1.3378, 1.3438,
-#                       1.3188, 1.3046, 1.3316)
+library(patchwork)
 
 
-### FIGURE 1 - spatial distribution of listings ################################
+### Colour palette #############################################################
 
-property_2016 <- 
-  daily %>% 
-  filter(status == "R", date > end_date - years(4), date <= end_date - years(3)) %>% 
-  group_by(property_ID) %>% 
-  summarize(revenue = sum(price) * exchange_rate) %>% 
-  left_join(filter(property, housing == TRUE), .) %>% 
-  mutate(Year = "2016") %>% 
-  filter(revenue > 0)
-
-property_2017 <- 
-  daily %>% 
-  filter(status == "R", date > end_date - years(3), date <= end_date - years(2)) %>% 
-  group_by(property_ID) %>% 
-  summarize(revenue = sum(price) * exchange_rate) %>% 
-  left_join(filter(property, housing == TRUE), .) %>% 
-  mutate(Year = "2017") %>% 
-  filter(revenue > 0)
-
-property_2018 <- 
-  daily %>% 
-  filter(status == "R", date > end_date - years(2), date <= end_date - years(1)) %>% 
-  group_by(property_ID) %>% 
-  summarize(revenue = sum(price) * exchange_rate) %>% 
-  left_join(filter(property, housing == TRUE), .) %>% 
-  mutate(Year = "2018") %>% 
-  filter(revenue > 0)
-
-property_2019 <- 
-  daily %>% 
-  filter(status == "R", date > end_date - years(1), date <= end_date) %>% 
-  group_by(property_ID) %>% 
-  summarize(revenue = sum(price) * exchange_rate) %>% 
-  left_join(filter(property, housing == TRUE), .) %>% 
-  mutate(Year = "2019") %>% 
-  filter(revenue > 0)
-
-map <- 
-  rbind(property_2016, property_2017, property_2018, property_2019) %>%
-  ggplot() +
-  geom_sf(data = streets, colour = alpha("grey", 0.3), lwd = 0.2) +
-  geom_sf(aes(size = revenue, colour = listing_type), stroke = 0, alpha = 0.4, 
-          show.legend = "point") +
-  facet_wrap(vars(Year), nrow = 2) +
-  scale_colour_manual(name = "Listing type",
-                      values = c("#A84268", "#9DBF9E", "#FCB97D")) +
-  scale_size_continuous(name = "Annual revenue",
-                        breaks = c(20000, 40000, 60000, 80000, 100000),
-                        labels = c("$20,000", "$40,000", "$60,000", "$80,000",
-                                   "$100,000"),
-                        range = c(0.15, 3)) +
-  guides(size = guide_legend(nrow = 3, byrow = TRUE),
-         colour = guide_legend(
-           override.aes = list(fill = c("#A84268", "#9DBF9E", "#FCB97D"), 
-                               alpha = 1), nrow = 3, byrow = TRUE)) +
-  theme(legend.position = "bottom",
-        legend.spacing.y = unit(10, "pt"),
-        axis.ticks = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        rect = element_blank(),
-        # text = element_text(family = "Futura", face = "plain"),
-        # legend.title = element_text(family = "Futura", face = "bold", 
-        #                             size = 10),
-        # legend.text = element_text(family = "Futura", size = 10),
-        # strip.text = element_text(family = "Futura", face = "bold", size = 12))
-  )
-
-ggsave("output/figure_1.pdf", plot = map, width = 8, height = 9, units = "in",
-       useDingbats = FALSE)
+col_palette <- 
+  c("#601F5F", "#89BD9E", "#46B1C9", "#8797B2", "#7E8D85")
 
 
 
-### FIGURE 2 - active listings #################################################
+### FIGURE 1 - active listings #################################################
+
 active_listings_type <- 
   daily %>% 
+  filter(housing, status != "U") %>% 
   count(date, listing_type) %>% 
-  mutate(n = if_else(date <= "2017-05-31" & listing_type == "Entire home/apt", n + 40, as.numeric(n)))
+  mutate(n = if_else(date <= "2017-05-31" & listing_type == "Entire home/apt", 
+                     # Adjusted to account for addition of HA on 2017-06-01
+                     n + 40, as.numeric(n)))
 
 active_listings_graph <-
   daily %>% 
-  filter(housing == TRUE, status != "U") %>% 
+  filter(housing, status != "U") %>% 
   count(date) %>% 
   # Numbers adjusted to account for addition of Homeaway on 2017-06-01
   mutate(n = if_else(date <= "2017-05-31", n + 48, as.numeric(n)),
          n = data.table::frollmean(n, 7)) %>% 
   ggplot() +
-  geom_line(aes(date, n), colour = "#A84268", size = 1.5) +
-  geom_line(data = active_listings_type, aes(date, n, colour = listing_type)) +
-  theme_minimal() +
+  geom_line(aes(date, n), colour = "black", size = 1.5) +
+  geom_line(data = active_listings_type, aes(date, n, colour = listing_type),
+            size = 0.75) +
   scale_y_continuous(name = NULL, label = scales::comma) +
+  scale_x_date(name = NULL, limits = c(as.Date("2017-01-01"), NA)) +
+  scale_colour_manual(name = "", values = col_palette[1:3]) +
   theme_minimal() +
-  scale_x_date(name = NULL, limits = c(as.Date("2017-01-01"), NA)) #+
-  # theme(text = element_text(family = "Futura"))
+  theme(legend.position = "bottom",
+        text = element_text(family = "Futura"),
+        )
 
-ggsave("output/figure_2.pdf", plot = active_listings_graph, width = 8, 
+ggsave("output/figure_1.pdf", plot = active_listings_graph, width = 8, 
        height = 5, units = "in", useDingbats = FALSE)
 
-
-
-### FIGURE 3 - neighbourhoods ##################################################
-
-# names <- read_csv("data/names.csv")
-# 
-# neighbourhoods <- 
-#   neighbourhoods %>% 
-#   select(-name) %>% 
-#   left_join(names) %>% 
-#   mutate(urban_rural = case_when(
-#     urban_rural == "dartmouth" ~ "Dartmouth",
-#     urban_rural == "halifax" ~ "Halifax",
-#     urban_rural == "other_urban" ~ "Suburban",
-#     urban_rural == "rural" ~ "Rural",
-#     TRUE ~ urban_rural
-#   ))
-# 
-# main_neighbourhood_map <-
-#   ggplot(st_simplify(neighbourhoods, dTolerance = 10)) +
-#   geom_sf(aes(fill = urban_rural), lwd = 0.2, colour = "white") +
-#   geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[1]],
-#             ymin = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[2]],
-#             xmax = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[3]],
-#             ymax = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[4]],
-#             fill = NA, colour = "black", size = 1) +
-#   ggrepel::geom_text_repel(
-#     aes(x = st_centroid(geometry) %>% st_coordinates() %>% `[`(,1),
-#         y = st_centroid(geometry) %>% st_coordinates() %>% `[`(,2),
-#         label = name, family = "Futura", size = 1.5),
-#     data = neighbourhoods %>% 
-#       filter(!urban_rural %in% c("Dartmouth", "Halifax")),
-#     nudge_x = c(-12000, 0,     0,     0,     0, 
-#                 20000,  0,     -5000, 25000, 25000,
-#                 -20000, 0,     10000, 0,     -10000,
-#                 -10000, 35000, 10000, 10000, -10000,
-#                 0,      20000, 20000, 12000, 0, 
-#                 20000),
-#     nudge_y = c(0,      -5000, 0,     0,     0,
-#                 0,      22000, 15000, 15000, 30000, 
-#                 0,      0,     -8000, 15000, 0, 
-#                 0,      0,     0,     5000,  -10000,
-#                 -10000, 0,     -6000, 0,     0,
-#                 5000),
-#     size = 2, segment.size = 0.2) +
-#   scale_fill_manual(name = "Sub-area", 
-#                     values = c("#9DBF9E", "#A84268", "#FCB97D", "#4A6C6F")) +
-#   theme(legend.justification = c(0, 1),
-#         legend.position = c(0, 1),
-#         axis.ticks = element_blank(),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank(),
-#         axis.text.x = element_blank(),
-#         axis.text.y = element_blank(),
-#         rect = element_blank(),
-#         text = element_text(family = "Futura", face = "plain"),
-#         legend.title = element_text(family = "Futura", face = "bold", 
-#                                     size = 10),
-#         legend.text = element_text(family = "Futura", size = 10))
-# 
-# 
-# subset <- 
-#   neighbourhoods %>% filter(urban_rural %in% c("Dartmouth", "Halifax"))
-# 
-# inset_neighbourhood_map <-
-#   subset %>% 
-#   st_simplify(dTolerance = 10) %>% 
-#   ggplot() +
-#   # geom_sf(data = CMHC, fill = "grey90", lwd = 0, colour = "transparent") +
-#   geom_sf(aes(fill = urban_rural), lwd = 0.2, colour = "white",
-#           data = neighbourhoods) +
-#   geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[1]],
-#             ymin = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[2]],
-#             xmax = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[3]],
-#             ymax = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[4]],
-#             fill = NA, colour = "black", size = 1) +
-#   ggrepel::geom_text_repel(
-#     aes(x = st_centroid(geometry) %>% st_coordinates() %>% `[`(,1),
-#         y = st_centroid(geometry) %>% st_coordinates() %>% `[`(,2),
-#         label = name),
-#     nudge_x = c(0,    0,    0,    -6000, 0, 
-#                 0,    0,    2000, 0,     0, 
-#                 0,    2000, 0,    -3000, -3000, 
-#                 0,    3000, 0,    0),
-#     nudge_y = c(0,    0,    0,    0,     0, 
-#                 1500, 0,    0,    -2000, 0, 
-#                 0,    0,    0,    0,     2000, 
-#                 0,    0,    0,    0),
-#     min.segment.length = 0.2,
-#     family = "Futura", size = 1.5, segment.size = 0.2) +
-#   scale_fill_manual(name = "Sub-area", 
-#                     values = c("#9DBF9E", "#A84268", "#FCB97D", "#4A6C6F")) +
-#   theme(legend.position = "none",
-#         rect = element_blank(),
-#         axis.ticks = element_blank(),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank(),
-#         axis.text.x = element_blank(),
-#         axis.text.y = element_blank(),
-#         text = element_text(family = "Futura", face = "plain")) +
-#   gg_bbox(subset, expand = FALSE)
-# 
-#   
-# neighbourhood_map <- 
-#   ggdraw(clip = "on") +
-#   draw_plot(main_neighbourhood_map) +
-#   draw_plot(inset_neighbourhood_map,
-#     x = 0.62, 
-#     y = 0,
-#     width = 0.42, 
-#     height = 0.42)
-# 
-# ggsave("output/figure_3.pdf", plot = neighbourhood_map, width = 8, height = 6, 
-#        units = "in", useDingbats = FALSE)
-  
-
-
-### FIGURE 4 - Charlottetown (+ PEI) map #################################################
-
-active_charlottetown <-
-  property %>% 
-  filter(housing == TRUE, created <= "2017-07-01", scraped >= "2017-07-01") %>% 
-  st_drop_geometry() %>% 
-  count(GeoUID) %>% 
-  left_join(., filter(property, housing == TRUE, created <= "2017-07-01", scraped >= "2017-07-01"))
+extrafont::embed_fonts("output/figure_1.pdf")
 
 
 
-charlottetown_wards_map <-
+### FIGURE 2 - Charlottetown maps ##############################################
+
+wards_map <-
   property %>%
   filter(housing, created <= key_date, scraped >= key_date) %>%
   st_drop_geometry() %>%
   count(ward) %>%
-  drop_na() %>%
-  left_join(., wards) %>%
-  st_as_sf() %>%
+  left_join(wards, .) %>%
   ggplot() +
-  geom_sf(aes(fill = n / dwellings), lwd = 1, colour = "white") +
-  scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
-                                   na.value = "grey80",
-                                   limits = c(0, 0.1),
-                                   oob = scales::squish,
-                                   labels = scales::percent) +
-                         geom_sf_text(aes(label = ward)) +
-                         coord_sf(expand = FALSE) +
-                         guides(fill = guide_colorbar(
-                           title = "Active STRs per dwelling")) +
-                         theme(axis.line = element_blank(),
-                               axis.text.x = element_blank(),
-                               axis.text.y = element_blank(),
-                               axis.ticks = element_blank(),
-                               axis.title.x = element_blank(),
-                               axis.title.y = element_blank(),
-                               panel.background = element_blank(),
-                               panel.border = element_blank(),
-                               legend.position = "bottom",
-                               # text = element_text(family = “Futura”, face = “plain”),
-                               # legend.title = element_text(family = “Futura”, face = “bold”,
-                               #                             size = 10),
-                               # legend.text = element_text(family = “Futura”, size = 10)
-                         )
+  geom_sf(
+    aes(fill = n / dwellings), 
+    lwd = 1, 
+    colour = "white") +
+  geom_sf_label(
+    aes(label = ward), 
+    size = 1.8, 
+    family = "Futura",
+    #alpha = 0.5,
+    fill = alpha("white", 0.6)) +
+  scale_fill_gradientn(
+    colors = col_palette[c(2, 1)],
+    na.value = "grey80",
+    limits = c(0, 0.1),
+    oob = scales::squish,
+    labels = scales::percent) +
+  guides(fill = guide_colorbar(title = "STRs/dwelling")) +
+  theme_void() +
+  theme(legend.position = "right",
+        text = element_text(family = "Futura", face = "plain"),
+        legend.title = element_text(family = "Futura", face = "bold", 
+                                    size = 10),
+        legend.text = element_text(family = "Futura", size = 10)
+        )
 
-ggsave("output/figure_4.pdf", plot = charlottetown_wards_map, width = 8,
-       height = 6.5, units = "in", useDingbats = FALSE)
-
-
-## DA active listings 
-
-charlottetown_DAs_map <-
+DA_map <- 
   property %>%
   filter(housing, created <= key_date, scraped >= key_date) %>%
   st_drop_geometry() %>%
   count(GeoUID) %>%
-  drop_na() %>%
-  left_join(., DAs) %>%
-  st_as_sf() %>%
+  left_join(DAs, .) %>%
+  st_intersection(ward_geometries) %>% 
   ggplot() +
-  geom_sf(data = DAs, fill = "grey80", color = "transparent") +
   geom_sf(aes(fill = n / dwellings), lwd = 0, colour = "white") +
-  scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
-                                   na.value = "grey80",
-                                   limits = c(0, 0.1),
-                                   oob = scales::squish,
-                                   labels = scales::percent) +
-                         coord_sf(expand = FALSE) +
-                         guides(fill = guide_colorbar(
-                           title = "Active STRs per dwelling")) +
-                         theme(axis.line = element_blank(),
-                               axis.text.x = element_blank(),
-                               axis.text.y = element_blank(),
-                               axis.ticks = element_blank(),
-                               axis.title.x = element_blank(),
-                               axis.title.y = element_blank(),
-                               panel.background = element_blank(),
-                               panel.border = element_blank(),
-                               legend.position = "bottom",
-                               # text = element_text(family = “Futura”, face = “plain”),
-                               # legend.title = element_text(family = “Futura”, face = “bold”,
-                               #                             size = 10),
-                               # legend.text = element_text(family = “Futura”, size = 10)
-                         )
+  scale_fill_gradientn(colors = col_palette[c(2, 1)],
+                       na.value = "grey80",
+                       limits = c(0, 0.1),
+                       oob = scales::squish,
+                       labels = scales::percent) +
+  guides(fill = guide_colorbar(title = "STRs/dwelling")) +
+  theme_void() +
+  theme(legend.position = "right",
+        text = element_text(family = "Futura", face = "plain"),
+        legend.title = element_text(family = "Futura", face = "bold", 
+                                    size = 10),
+        legend.text = element_text(family = "Futura", size = 10)
+  )
 
-ggsave("output/figure_4b.pdf", plot = charlottetown_DAs_map, width = 8,
-       height = 6.5, units = "in", useDingbats = FALSE)
+listings_map <- 
+  wards_map + DA_map + plot_layout(guides = "collect")
 
-### FIGURE 5 - bedroom breakdowns ##############################################
+ggsave("output/figure_2.pdf", plot = listings_map, width = 8,
+       height = 4, units = "in", useDingbats = FALSE)
 
-var <- filter(property, 
-              housing == TRUE, listing_type == "Entire home/apt")$bedrooms
-nrows <- 20
-df <- expand.grid(y = 1:20, x = 1:20)
-categ_table <- round(table(var) * ((20*20)/(length(var))))
-# note: sum from categ_table such that there are only 6 categories
-# manually enter the following numbers.
-categ_table <- c(25, 132, 128, 84, 21, 10)
-names(categ_table) <- c("0 (studio)", "1",  "2", "3", "4", "5+")
-df$category <- factor(rep(names(categ_table), categ_table))  
-
-bedrooms_graph <-
-  ggplot(df, aes(x = x, y = y, fill = category)) +
-  geom_tile(color = "white", size = 0.5) +
-  scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0, 0), trans = 'reverse') +
-  scale_fill_manual(name = "Bedrooms", 
-                    values = c("#9DBF9E", "#A84268", "#FCB97D", "#C0BCB5",
-                               "#4A6C6F", "#FF5E5B")) +
-  theme(plot.title = element_text(size = rel(1.2)),
-        panel.border = element_rect(size = 1, fill = NA),
-        axis.text = element_blank(),
-        axis.title = element_blank(),
-        axis.ticks = element_blank(),
-        legend.position = "bottom", 
-        # legend.title = element_text(family = "Futura", face = "bold", 
-        #                             size = 10),
-        # legend.text = element_text(family = "Futura", size = 10)
-        )
-
-ggsave("output/figure_5.pdf", plot = bedrooms_graph, width = 8, 
-       height = 5, units = "in", useDingbats = FALSE)
+extrafont::embed_fonts("output/figure_2.pdf")
 
 
+### FIGURE 3 - seasonality graph ###############################################
 
-### FIGURE 6 - host revenue percentiles graph ##################################
+seasonality_graph <- 
+  seasonality_Canada %>% 
+  filter(city != 15) %>%
+  ggplot() +
+  geom_line(
+    aes(month, season_book, group = city), 
+    lwd = 1.5, 
+    colour = alpha("grey10", 0.2)) +
+  geom_line(
+    aes(month, season_book, group = 1), 
+    data = seasonality, 
+    lwd = 2,
+    colour = col_palette[3]) +
+  scale_y_continuous(name = "", labels = scales::percent, limits = c(0, NA)) +
+  scale_x_discrete(name = "") +
+  theme_minimal() +
+  theme(text = element_text(family = "Futura"))
+
+ggsave("output/figure_3.pdf", plot = seasonality_graph, width = 8, 
+       height = 5.5, units = "in", useDingbats = FALSE)
+
+extrafont::embed_fonts("output/figure_3.pdf")
+
+
+### FIGURE 4 - host revenue percentiles graph ##################################
 
 revenue_graph <-
   daily %>%
@@ -402,19 +158,84 @@ revenue_graph <-
                                         'Top 20%'))
   ) %>% 
   ggplot() +
-  geom_bar(aes(percentile, value), stat = "identity", fill = "#A84268") +
+  geom_bar(aes(percentile, value, fill = percentile), stat = "identity") +
   theme_minimal() +
   scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = col_palette[1:4]) +
   theme(axis.title.y = element_blank(),
         axis.title.x = element_blank(),
-        # text = element_text(family = "Futura", face = "plain"),
-        # legend.title = element_text(family = "Futura", face = "bold", 
-        #                             size = 10),
-        # legend.text = element_text(family = "Futura", size = 10),
+        text = element_text(family = "Futura", face = "plain"),
+        legend.title = element_text(family = "Futura", face = "bold",
+                                    size = 10),
+        legend.text = element_text(family = "Futura", size = 10),
         legend.position = "none")
 
-ggsave("output/figure_6.pdf", plot = revenue_graph, width = 8, height = 4, 
+ggsave("output/figure_4.pdf", plot = revenue_graph, width = 8, height = 5, 
        units = "in", useDingbats = FALSE)
+
+extrafont::embed_fonts("output/figure_4.pdf")
+
+
+### FIGURE 5 - housing loss ####################################################
+
+housing_graph <-
+  housing_loss %>% 
+  mutate(`Listing type` = factor(
+    `Listing type`, 
+    levels = c("Summer listings", "Private room", "Entire home/apt"))) %>% 
+  ggplot(aes(`Listing type`)) +
+  geom_col(aes(date, `Housing units`, fill = `Listing type`),
+           lwd = 0) +
+  theme_minimal() +
+  scale_y_continuous(name = NULL, label = scales::comma, limits = c(0, 200)) +
+  scale_x_date(name = NULL, limits = c(as.Date("2016-10-01"), NA)) +
+  scale_fill_manual(values = col_palette[3:1]) +
+  theme(legend.position = "bottom", 
+        text = element_text(family = "Futura", face = "plain"),
+        legend.title = element_text(family = "Futura", face = "bold",
+                                    size = 10),
+        legend.text = element_text(family = "Futura", size = 10)
+  )
+
+ggsave("output/figure_5.pdf", plot = housing_graph, width = 8, height = 7, 
+       units = "in", useDingbats = FALSE)
+
+extrafont::embed_fonts("output/figure_5.pdf")
+
+
+### FIGURE 6 - vacancy rate change #############################################
+
+vacancy_rate <- 
+  tibble(Year = c(2017, 2018, 2019, 2019, 2020, 2021, 2022,
+                  2017, 2018, 2019, 2020, 2021, 2022),
+         `Vacancy rate` = c(rep("Vacancy rate", 3),
+                            rep("Vacancy rate (projected)", 4),
+                            rep("Vacancy rate with no dedicated STRs", 6)
+                            ),
+          Value = c(0.010, 0.002, 0.012, 0.012, 0.006, 0.011, 0.020,
+                    0.017, 0.018, 0.029, 0.023, 0.031, 0.041))
+
+vacancy_graph <- 
+  vacancy_rate %>% 
+  ggplot(aes(Year, Value)) +
+  geom_line(aes(colour = `Vacancy rate`, linetype = `Vacancy rate`),
+            lwd = 2) +
+  scale_x_continuous(name = "") +
+  scale_y_continuous(name = "", limits = c(0, 0.045), 
+                     labels = scales::percent) +
+  scale_colour_manual(values = col_palette[c(1, 1, 3)]) +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(family = "Futura", face = "plain"),
+        legend.text = element_text(family = "Futura", size = 10))
+
+ggsave("output/figure_6.pdf", plot = vacancy_graph, width = 8, height = 4, 
+       units = "in", useDingbats = FALSE)
+
+extrafont::embed_fonts("output/figure_6.pdf")
 
 
 ### FIGURE 7 - multilistings graph #############################################
@@ -424,8 +245,8 @@ ML_summary <-
   group_by(date) %>% 
   summarize(Listings = mean(ML),
             Revenue = sum(price * (status == "R") * ML * exchange_rate, 
-                          na.rm = TRUE) / sum(price * (status == "R") * 
-                                                exchange_rate, na.rm = TRUE))
+                          na.rm = TRUE) / 
+              sum(price * (status == "R") * exchange_rate, na.rm = TRUE))
 
 ML_graph <-
   ML_summary %>% 
@@ -437,255 +258,478 @@ ML_graph <-
   theme_minimal() +
   scale_y_continuous(name = NULL, label = scales::percent) +
   scale_x_date(name = NULL, limits = c(as.Date("2016-06-01"), NA)) +
-  scale_colour_manual(values = c("#9DBF9E", "#A84268")) +
+  scale_colour_manual(values = col_palette[c(1, 3)]) +
   theme(legend.position = "bottom", 
-        # text = element_text(family = "Futura", face = "plain"),
-        # legend.title = element_text(family = "Futura", face = "bold", 
-        #                             size = 10),
-        # legend.text = element_text(family = "Futura", size = 10)
+        text = element_text(family = "Futura", face = "plain"),
+        legend.title = element_text(family = "Futura", face = "bold",
+                                    size = 10),
+        legend.text = element_text(family = "Futura", size = 10)
         )
 
 ggsave("output/figure_7.pdf", plot = ML_graph, width = 8, height = 6, 
        units = "in", useDingbats = FALSE)
 
+extrafont::embed_fonts("output/figure_7.pdf")
+
   
-### FIGURE 8 - housing loss ####################################################
+### FIGURE 8 - principal residence map #########################################
 
-# TKTK need housing_loss for this
-housing_graph <- 
-  housing_loss %>% 
-  mutate(`Listing type` = factor(`Listing type`, 
-                  levels = c("Summer listings", "Private room", "Entire home/apt"))) %>% 
-  ggplot(aes(`Listing type`)) +
-  geom_col(aes(date, `Housing units`, fill = `Listing type`),
-           lwd = 0) +
-  theme_minimal() +
-  scale_y_continuous(name = NULL, label = scales::comma, limits = c(0, 200)) +
-  scale_x_date(name = NULL, limits = c(as.Date("2016-10-01"), NA)) +
-  #scale_fill_manual(values = c("#9DBF9E", "#A84268")) +
-  theme(legend.position = "bottom", 
-        # text = element_text(family = "Futura", face = "plain"),
-        # legend.title = element_text(family = "Futura", face = "bold", 
-        #                             size = 10),
-        # legend.text = element_text(family = "Futura", size = 10)
-        )
-
-ggsave("output/figure_8.pdf", plot = housing_graph, width = 8, height = 7, 
-       units = "in", useDingbats = FALSE)
-
-
-
-### FIGURE 9 - housing loss map ################################################
-
-main_housing_charlottetown <-
-  DAs_charlottetown %>%
+pr_map <- 
+  property %>% 
+  st_filter(city) %>% 
+  filter(housing, created <= end_date, scraped > end_date - years(1)) %>% 
   ggplot() +
-  geom_sf(aes(fill = housing_loss_pct, geometry = geometry), lwd = 0,
-          colour = "white") +
-  # geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods,
-  #                                 urban_rural %in% c("Halifax",
-  #                                                    "Dartmouth")))[[1]],
-  #           ymin = st_bbox(filter(airbnb_neighbourhoods,
-  #                                 urban_rural %in% c("Halifax",
-  #                                                    "Dartmouth")))[[2]],
-  #           xmax = st_bbox(filter(airbnb_neighbourhoods,
-  #                                 urban_rural %in% c("Halifax",
-  #                                                    "Dartmouth")))[[3]],
-  #           ymax = st_bbox(filter(airbnb_neighbourhoods,
-  #                                 urban_rural %in% c("Halifax",
-  #                                                    "Dartmouth")))[[4]],
-  #           fill = NA, colour = "black", size = 1) +
-  scale_fill_gradientn(colors = c("#9DBF9E", "#FCB97D", "#A84268"),
-                       values = (c(0, 0.5, 1)),
-                       limits = c(0, 0.02),
-                       oob = scales::squish,
-                       labels = scales::percent) +
-  coord_sf(expand = FALSE) +
-  # geom_sf(data = charlottetown_streets, colour = alpha("grey", 0.5)) +
-  guides(fill = guide_colorbar(
-    title = "Percentage of housing lost to STRs")) +
-  theme(axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.background = element_blank(),
-        panel.border = element_blank(),
-        legend.justification = c(0, 1),
-        legend.position = c(0, 1),
-        # text = element_text(family = "Futura", face = "plain"),
-        # legend.title = element_text(family = "Futura", face = "bold",
-        #                             size = 10),
-        # legend.text = element_text(family = "Futura", size = 10)
-        )
+  # geom_sf(data = wards, fill = "white", colour = "transparent", lwd = 0) +
+  geom_sf(data = streets, colour = "grey50", lwd = 0.2) +
+  geom_sf(aes(colour = principal_res_2019), size = 1, alpha = 0.8) +
+  scale_colour_manual(name = "Principal residence", 
+                      values = col_palette[c(1,3)]) +
+  guides(colour = 
+           guide_legend(override.aes = list(fill = col_palette[c(1,3)],
+                                            alpha = 1))
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "bottom",
+    text = element_text(family = "Futura", face = "plain"),
+    legend.title = element_text(family = "Futura", face = "bold", size = 10),
+    legend.text = element_text(family = "Futura", size = 10)
+    )
 
-housing_charlottetown <-
-  main_housing_charlottetown
-  # ggdraw(clip = "on") +
-  # draw_plot(main_housing_nbhd) +
-  # draw_plot(
-  #   {main_housing_nbhd +
-  #     gg_bbox(DAs_charlottetown,
-  #             expand = FALSE) +
-  #       theme(legend.position = "none")},
-  #   x = 0.62,
-  #   y = 0,
-  #   width = 0.42,
-  #   height = 0.42)
-
-ggsave("output/figure_9.pdf", plot = housing_charlottetown, width = 8, height = 6,
+ggsave("output/figure_8.pdf", plot = pr_map, width = 8, height = 8, 
        units = "in", useDingbats = FALSE)
 
+extrafont::embed_fonts("output/figure_8.pdf")
 
 
-### FIGURE 10 - legal listings (principal residences) ###########################
+### FIGURE 9 - scenario maps ###################################################
 
-# main_legal <-
-#   legal %>% 
-#   mutate(legal = if_else(legal == TRUE, FALSE, TRUE)) %>% 
-#   ggplot() +
-#   geom_sf(data = HRM_streets, colour = alpha("grey", 0.3), lwd = 0.2) +
-#   geom_sf(aes(colour = legal), size = 0.7, stroke = 0, alpha = 0.5,
-#           show.legend = "point") +
-#   geom_rect(xmin = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[1]],
-#             ymin = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[2]],
-#             xmax = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[3]],
-#             ymax = st_bbox(filter(airbnb_neighbourhoods, 
-#                                   urban_rural %in% c("Halifax",
-#                                                      "Dartmouth")))[[4]],
-#             fill = NA, colour = "black", size = 1) +
-#   scale_colour_manual(name = "Listings needing to register",
-#                       values = c("#9DBF9E", "#A84268")) + 
-#   guides(colour = guide_legend(
-#     override.aes = list(colour = c("#9DBF9E", "#A84268"),
-#                         fill = c("#9DBF9E", "#A84268"), alpha = 1, size = 3,
-#                         shape = 21))) +
-#   coord_sf(expand = FALSE) +
-#   theme(axis.line = element_blank(),
-#         axis.text.x = element_blank(),
-#         axis.text.y = element_blank(),
-#         axis.ticks = element_blank(),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank(),
-#         panel.background = element_blank(),
-#         panel.border = element_blank(),
-#         legend.justification = c(0, 1),
-#         legend.position = c(0, 1),
-#         text = element_text(family = "Futura", face = "plain"),
-#         legend.title = element_text(family = "Futura", face = "bold", 
-#                                     size = 10),
-#         legend.text = element_text(family = "Futura", size = 10))
-# 
-# legal_map <- 
-#   ggdraw(clip = "on") +
-#   draw_plot(main_legal) +
-#   draw_plot(
-#     {main_legal + 
-#         gg_bbox(filter(airbnb_neighbourhoods, 
-#                        urban_rural %in% c("Halifax", "Dartmouth")),
-#                 expand = FALSE) +
-#         theme(legend.position = "none")},
-#     x = 0.62, 
-#     y = 0,
-#     width = 0.42, 
-#     height = 0.42)
-# 
-# ggsave("output/figure_10.pdf", plot = legal_map, width = 8, height = 6, 
-#        units = "in", useDingbats = FALSE)
+library(patchwork)
+
+hotel_zones <- 
+  c("C2", "C3", "MUVC", "DMU", "DMS", "DC", "M3", "WF", "MUC", "A", "PZ")
+
+map_theme <- 
+  theme_void() +
+  theme(legend.position = "right",
+        text = element_text(family = "Futura", face = "plain"),
+        legend.title = element_text(family = "Futura", face = "bold", 
+                                    size = 10),
+        legend.text = element_text(family = "Futura", size = 9),
+        plot.title = element_text(family = "Futura", face = "bold"),
+        legend.key.height = unit(1, "cm")
+        )
+
+sc1 <-
+  zones %>% 
+  mutate(
+    `STRs allowed` = factor(
+      "Principal residence only, \nno apartments", 
+      levels = c("Principal residence only, \nno apartments",
+                 "Principal residence only, \napartments allowed",
+                 "Commercial operations allowed"
+      ))) %>% 
+  ggplot() +
+  geom_sf(aes(fill = `STRs allowed`), lwd = 0, colour = "transparent") +
+  geom_sf(data = filter(property, housing, created <= key_date, 
+                        scraped >= key_date),
+          size = 0.7, alpha = 0.7, stroke = 0) +
+  scale_fill_manual(values = col_palette[2:4], drop = FALSE) +
+  ggtitle("Scenario 1") +
+  map_theme
+
+sc2 <- 
+  zones %>% 
+  mutate(
+    `STRs allowed` = factor(
+      "Principal residence only, \napartments allowed",
+      levels = c("Principal residence only, \nno apartments",
+                 "Principal residence only, \napartments allowed",
+                 "Commercial operations allowed"
+      ))) %>% 
+  ggplot() +
+  geom_sf(aes(fill = `STRs allowed`), lwd = 0, colour = "transparent") +
+  geom_sf(data = filter(property, housing, created <= key_date, 
+                        scraped >= key_date),
+          size = 0.7, alpha = 0.7, stroke = 0) +
+  scale_fill_manual(values = col_palette[2:4], drop = FALSE) +
+  ggtitle("Scenario 2") +
+  map_theme
+
+sc3_zones <- 
+  zones %>% 
+  mutate(`STRs allowed` = case_when(
+    ZONING %in% hotel_zones ~ factor(
+      "Commercial operations allowed",
+      levels = c("Principal residence only, \nno apartments",
+                 "Principal residence only, \napartments allowed",
+                 "Commercial operations allowed"
+      )),
+    TRUE ~ factor(
+      "Principal residence only, \nno apartments",
+      levels = c("Principal residence only, \nno apartments",
+                 "Principal residence only, \napartments allowed",
+                 "Commercial operations allowed"
+      ))))
+
+sc3 <- 
+  sc3_zones %>% 
+  ggplot() +
+  geom_sf(aes(fill = `STRs allowed`), lwd = 0, colour = "transparent") +
+  geom_sf(data = filter(property, housing, created <= key_date, 
+                        scraped >= key_date),
+          size = 0.7, alpha = 0.7, stroke = 0) +
+  scale_fill_manual(values = col_palette[2:4], drop = FALSE) +
+  ggtitle("Scenario 3") +
+  map_theme
+
+sc4 <- 
+  zones %>% 
+  mutate(`STRs allowed` = case_when(
+    ZONING %in% hotel_zones ~ factor(
+      "Commercial operations allowed",
+      levels = c("Principal residence only, \nno apartments",
+                 "Principal residence only, \napartments allowed",
+                 "Commercial operations allowed"
+      )),
+    TRUE ~ factor(
+      "Principal residence only, \napartments allowed",
+      levels = c("Principal residence only, \nno apartments",
+                 "Principal residence only, \napartments allowed",
+                 "Commercial operations allowed"
+      )))) %>% 
+  ggplot() +
+  geom_sf(aes(fill = `STRs allowed`), lwd = 0, colour = "transparent") +
+  geom_sf(data = filter(property, housing, created <= key_date, 
+                        scraped >= key_date),
+          size = 0.7, alpha = 0.7, stroke = 0) +
+  scale_fill_manual(values = col_palette[2:4], drop = FALSE) +
+  ggtitle("Scenario 4") +
+  map_theme
 
 
-### FIGURE 11 - vacancy rate change ############################################
+sc5_zones <-
+  zones %>% 
+  mutate(`STRs allowed` = case_when(
+    ZONING %in% hotel_zones ~ factor(
+      "Commercial operations allowed",
+      levels = c("Principal residence only, \nno apartments",
+                 "Principal residence only, \napartments allowed",
+                 "Commercial operations allowed"
+      )),
+    ZONING == "DMUN" ~ factor(
+      "Commercial operations allowed",
+      levels = c("Principal residence only, \nno apartments",
+                 "Principal residence only, \napartments allowed",
+                 "Commercial operations allowed"
+      )),
+    TRUE ~ factor(
+      "Principal residence only, \napartments allowed",
+      levels = c("Principal residence only, \nno apartments",
+                 "Principal residence only, \napartments allowed",
+                 "Commercial operations allowed"
+      ))))
 
-# vacancy_rate_map <-
-#   CMHC_tidy %>% 
-#   st_as_sf() %>% 
-#   mutate(name = if_else(name == "rental_vacancy", "Current vacancy rate",
-#                         "Post-regulation vacancy rate"),
-#          name = factor(
-#            name, 
-#            levels = c("Current vacancy rate",
-#                       "Post-regulation vacancy rate")),
-#          pct = paste0(substr(value, 4, 4), ".", 
-#                       substr(round(CMHC_tidy$value, 3), 5, 5), "%"),
-#          pct = if_else(nchar(pct) == 4, pct, paste0(substr(pct, 1, 2), 
-#                                                     "0%"))) %>% 
-#   filter(zone != "Remainder of CMA") %>% 
-#   ggplot() +
-#   geom_sf(data = CMHC, fill = "grey90", lwd = 0, colour = "transparent") +
-#   geom_sf(data = HRM_streets$geometry, colour = alpha("grey", 0.3), lwd = 0.2) +
-#   geom_sf(aes(fill = value), lwd = 0, colour = "white", alpha = 0.6) +
-#   geom_sf_label(aes(label = pct), size = 1.5, family = "Futura") +
-#   scale_fill_gradientn(colors = c("#A84268", "#FCB97D", "#9DBF9E"),
-#                        values = (c(0, 0.5, 1)),
-#                        limits = c(0.01, 0.03),
-#                        oob = scales::squish,
-#                        labels = scales::percent) +
-#   coord_sf(expand = FALSE) +
-#   facet_wrap(vars(name), nrow = 1) +
-#   theme(axis.ticks = element_blank(),
-#         axis.text.x = element_blank(),
-#         axis.text.y = element_blank(),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank(),
-#         rect = element_blank(),
-#         legend.position = "none",
-#         text = element_text(family = "Futura", face = "plain"),
-#         strip.text = element_text(family = "Futura", face = "bold", 
-#                                   size = 12)) +
-#   gg_bbox(CMHC %>% slice(1:9))
-# 
-# ggsave("output/figure_11.pdf", plot = vacancy_rate_map, width = 8, height = 4, 
-#        units = "in", useDingbats = FALSE)
+sc5 <- 
+  sc5_zones %>% 
+  ggplot() +
+  geom_sf(aes(fill = `STRs allowed`), lwd = 0, colour = "transparent") +
+  geom_sf(data = filter(property, housing, created <= key_date,
+                        scraped >= key_date),
+          size = 0.7, alpha = 0.7, stroke = 0) +
+  scale_fill_manual(values = col_palette[2:4], drop = FALSE) +
+  ggtitle("Scenario 5") +
+  map_theme
+
+scenario_map <- 
+  sc1 + sc2 + sc3 + sc4 + sc5 + guide_area() + plot_layout(guides = "collect")
+
+ggsave("output/figure_9.pdf", plot = scenario_map, width = 8, height = 6, 
+       units = "in", useDingbats = FALSE)
+
+extrafont::embed_fonts("output/figure_9.pdf")
 
 
-# SEASONALITY 
-# Set up data
-seasonality <- daily %>% 
-  filter(housing == TRUE, 
-         date <= end_date, 
-         date >= ymd(end_date) - years(2) + days(1)) %>% 
-  mutate(yearmonth = as.yearmon(date)) %>% 
-  group_by(yearmonth) %>% 
-  summarize(rev = sum(price[status == "R"])) %>% 
-  mutate(month = lubridate::month(yearmonth, label = TRUE)) %>% 
-  mutate(seasonality = as.vector(decompose(ts(rev, frequency = 12), "multiplicative")$seasonal)/12) %>% 
-  group_by(month, seasonality) %>% 
-  summarise() %>% 
-  ungroup()
+### FIGURE 10 - ward commercial maps ###########################################
 
-# Reordering and changing levels
-seasonality <- 
-map_df(seq_len(nrow(seasonality)), ~{
-  
-  seasonality[lubridate::month(as.yearmon(ymd(end_date) + days(1) + months (.x-1))), ]
-  
-})
+patchwork_layout <- "
+ABCDE
+FGHIJ
+KKKKK
+"
 
-seasonality$month <- factor(seasonality$month, levels=unique(seasonality$month))
+housing_loss_listings <-
+  FREH %>% 
+  filter(date > end_date - years(1)) %>% 
+  pull(property_ID) %>% 
+  {filter(property, housing, property_ID %in% .)} %>% 
+  select(property_ID, geometry) %>% 
+  rbind(GH %>% 
+          filter(date > end_date - years(1)) %>% 
+          group_by(ghost_ID) %>% 
+          summarize(geometry = st_centroid(st_union(geometry))) %>% 
+          transmute(property_ID = as.character(ghost_ID))
+  )
 
-# Plot
-figure_seasonality <- 
-  ggplot()+
-  geom_line(data = seasonality,
-            mapping = aes(x = month, 
-                          y = seasonality), lwd = 1.8, alpha = 0.8, group = 1) +
-  theme(panel.grid.major.x = element_line(size = 0.05, color = "grey80"),
-        text=element_text(size=10),
-        axis.text = element_text(size = 10),
-        panel.grid.major.y = element_line(size = 0.05, color = "grey80"),
-        panel.grid.minor.y = element_line(size = 0.025, color = "grey80"),
-        legend.key = element_blank(),
-        legend.position = "bottom",
-        legend.justification = "center",
-        panel.background=element_blank(),
-        axis.line = element_line(size = .09, color = "grey10"))+
-  xlab("Month")+
-  ylab("Percentage of revenue")+
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1))
+sc5_reallocation <- 
+  wards %>% 
+  mutate(area = st_area(geometry)) %>% 
+  st_intersection(
+    summarize(group_by(lwgeom::st_make_valid(sc5_zones), `STRs allowed`))
+  ) %>% 
+  mutate(dwellings = dwellings * st_area(geometry) / area)
+
+ward_map <- 
+  housing_loss_listings %>% 
+  st_join(sc5_reallocation, ., left = TRUE) %>% 
+  group_by(ward, STRs.allowed) %>% 
+  summarize(listing_density = n() / sum(dwellings)) %>% 
+  group_split() %>% 
+  map(~{
+    .x %>% 
+      ggplot() +
+      geom_sf(aes(fill = units::drop_units(listing_density)), lwd = 0, 
+              colour = "transparent") +
+      scale_fill_gradientn(
+        name = "STR housing loss",
+        colors = col_palette[c(2, 3, 1)],
+        limits = c(0., 0.02),
+        oob = scales::squish,
+        labels = scales::percent) +
+      ggtitle(.x$ward[1]) +
+      theme_void() +
+      theme(legend.position = "bottom",
+            legend.key.width = unit(1.5, "cm"),
+            text = element_text(family = "Futura", face = "plain"),
+            legend.title = element_text(family = "Futura", face = "bold", 
+                                        size = 10),
+            legend.text = element_text(family = "Futura", size = 9),
+            plot.title = element_text(family = "Futura", size = 9,
+                                      face = "bold"))
+  }) %>% 
+  wrap_plots() +
+  guide_area() +
+  plot_layout(design = patchwork_layout, guides = "collect",
+              heights = c(3, 3, 1))
+
+ggsave("output/figure_10.pdf", plot = ward_map, width = 8, height = 8, 
+       units = "in", useDingbats = FALSE)
+
+extrafont::embed_fonts("output/figure_10.pdf")
+
+
+### FIGURE 11 - vacancy rate scenarios #########################################
+
+vacancy_rate_scenarios <- 
+  tibble(Year = c(2017, 2018, 2019, 
+                  rep(c(2019, 2020, 2021, 2022), 6)),
+         `Vacancy rate` = c(rep("Vacancy rate", 3),
+                            rep("Vacancy rate (projected)", 4),
+                            rep("Scenario 1", 4),
+                            rep("Scenario 2", 4),
+                            rep("Scenario 3", 4),
+                            rep("Scenario 4", 4),
+                            rep("Scenario 5", 4)
+         ),
+         Value = c(0.010, 0.002, 0.012, 
+                   0.012, 0.006, 0.011, 0.020,
+                   0.012, 0.022, 0.029, 0.039,
+                   0.012, 0.021, 0.028, 0.038,
+                   0.012, 0.017, 0.024, 0.033,
+                   0.012, 0.017, 0.023, 0.033,
+                   0.012, 0.014, 0.021, 0.030)) %>% 
+  mutate(`Vacancy rate` = factor(`Vacancy rate`, levels = c(
+    "Vacancy rate", "Vacancy rate (projected)", "Scenario 1", "Scenario 2",
+    "Scenario 3", "Scenario 4", "Scenario 5")))
+
+vacancy_scenario_graph <- 
+  vacancy_rate_scenarios %>% 
+  ggplot(aes(Year, Value)) +
+  geom_line(aes(colour = `Vacancy rate`, linetype = `Vacancy rate`),
+            lwd = 1.5) +
+  scale_x_continuous(name = "") +
+  scale_y_continuous(name = "", limits = c(0, 0.04), 
+                     labels = scales::percent) +
+  scale_colour_manual(values = col_palette[c(1, 1, 2, 3, 4, 5, 2)]) +
+  scale_linetype_manual(values = c(1, rep(5, 6))) +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        text = element_text(family = "Futura", face = "plain"),
+        legend.text = element_text(family = "Futura", size = 10))
+
+ggsave("output/figure_11.pdf", plot = vacancy_scenario_graph, width = 8, 
+       height = 4, units = "in", useDingbats = FALSE)
+
+extrafont::embed_fonts("output/figure_11.pdf")
+
+
+### FIGURE 12 - supply modelling ###############################################
+
+supply_table <- 
+  tibble(
+    scenario = c("All scenarios", "Scenario 1", "Scenario 2", "Scenario 3",
+                 "Scenario 4", "Scenario 5"),
+    listings = c(0, 438, 497, 469, 519, 542),
+    avg_nights = c(0, 46.2, 46.6, 49.4, 49.1, 52.1)
+  )
+
+supply_funs_100 <- 
+  pmap(supply_table, ~{
+  function(x) (56664 - ..2 * ..3 - ..3 * x) / (..2 + x)
+}) %>% 
+  set_names(supply_table$scenario)
+
+full_list <- 834
+full_avg_n <- 56664/834
+
+supply_funs_75 <- 
+  pmap(supply_table, ~{
+    
+    m <- ..2 + (full_list - ..2) * 1/4
+    n <- ..3 + (full_avg_n - ..3) * 1/4
+    
+    function(x) {
+      (56664 - (m * n) - (n * x)) / (m + x)
+      }}) %>% 
+  set_names(supply_table$scenario)
+
+supply_funs_50 <- 
+  pmap(supply_table, ~{
+    
+    m <- ..2 + (full_list - ..2) * 1/2
+    n <- ..3 + (full_avg_n - ..3) * 1/2
+    
+    function(x) {
+      (56664 - (m * n) - (n * x)) / (m + x)
+    }}) %>% 
+  set_names(supply_table$scenario)
+
+supply_df <- 
+  pmap_dfr(list(supply_funs_50, supply_funs_75, supply_funs_100), 
+           function(a, b, c) {
+             tibble(x = 0:800, y50 = a(x), y75 = b(x), y100 = c(x)) %>% 
+      mutate(y50 = if_else(y50 >= 0, y50, 0),
+             y100 = if_else(y100 >= 0, y100, 0),
+             y50_line = if_else(y50 > 0, y50, NA_real_),
+             y75_line = if_else(y75 > 0, y75, NA_real_),
+             y100_line = if_else(y100 > 0, y100, NA_real_))
+  }, .id = "scenario")
+
+supply_main <- 
+  ggplot(supply_df) +
+  geom_ribbon(aes(x, ymin = y50, ymax = y100, fill = scenario), alpha = 0.1) +
+  geom_line(aes(x, y50_line, colour = scenario), linetype = 2) +
+  geom_line(aes(x, y75_line, colour = scenario), linetype = 3) +
+  geom_line(aes(x, y100_line, colour = scenario)) +
+  scale_y_continuous(name = "Additional nights booked per listing") +
+  scale_x_continuous(name = "Additional listings") +
+  scale_colour_manual(name = "", values = c("transparent", col_palette)) +
+  scale_fill_manual(name = "", values = c("transparent", col_palette)) +
+  coord_cartesian(ylim = c(0, 100)) +
+  facet_wrap(~scenario) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        text = element_text(family = "Futura", face = "plain"),
+        legend.text = element_text(family = "Futura", size = 10),
+        strip.text = element_text(family = "Futura", face = "bold", size = 10))
+
+overview <-
+  supply_df %>% 
+  filter(scenario != "All scenarios") %>% 
+  ggplot() +
+  geom_line(aes(x, y50_line + 1, colour = scenario), linetype = 2) +
+  geom_line(aes(x, y100_line + 1, colour = scenario)) + 
+  scale_y_continuous(name = "", limits = c(0, 100)) +
+  scale_x_continuous(name = "") +
+  scale_colour_manual(values = col_palette) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text = element_blank(),
+        axis.line = element_line(colour = "transparent"),
+        panel.grid = element_line(colour = "transparent")
+        )
+
+supply_layout <- c(
+  area(1, 1, 2, 3),
+  area(1, 1, 1, 1)
+)
+
+supply_graph <- supply_main + overview + plot_layout(design = supply_layout)
+
+ggsave("output/figure_12.pdf", plot = supply_graph, width = 8, height = 5, 
+       units = "in", useDingbats = FALSE)
+
+extrafont::embed_fonts("output/figure_12.pdf")
+
+
+### Calculate minimum night/listings combinations ##############################
+
+supply_funs_100_adjusted <-
+  supply_table %>% 
+  filter(scenario != "All scenarios") %>% 
+  pmap(~{
+      
+      m <- ..2 / 10
+      n <- ..3
+      
+    function(x) {
+      x^2 + ((56664/10 - (m * n) - (n * x)) / (m + x))^2
+      }}) %>% 
+  set_names(supply_table$scenario[2:6])
+
+supply_funs_75_adjusted <- 
+  supply_table %>% 
+  filter(scenario != "All scenarios") %>% 
+  pmap(~{
+    m <- (..2 + (full_list - ..2) * 1/4) / 10
+    n <- ..3 + (full_avg_n - ..3) * 1/4
+    
+    function(x) {
+      x^2 + ((56664/10 - (m * n) - (n * x)) / (m + x))^2
+      }}) %>% 
+  set_names(supply_table$scenario[2:6])
+
+supply_funs_50_adjusted <- 
+  supply_table %>% 
+  filter(scenario != "All scenarios") %>% 
+  pmap(~{
+    m <- (..2 + (full_list - ..2) * 1/2) / 10
+    n <- ..3 + (full_avg_n - ..3) * 1/2
+    
+    function(x) {
+      x^2 + ((56664/10 - (m * n) - (n * x)) / (m + x))^2
+    }}) %>% 
+  set_names(supply_table$scenario[2:6])
+
+supply_derivs_100 <- 
+  supply_funs_100_adjusted %>% 
+  map(Deriv::Deriv)
+
+supply_derivs_75 <- 
+  supply_funs_75_adjusted %>% 
+  map(Deriv::Deriv)
+
+supply_derivs_50 <- 
+  supply_funs_50_adjusted %>% 
+  map(Deriv::Deriv)
+
+supply_derivs_100[[5]](21.8)
+supply_derivs_75[[5]](16.1)
+supply_derivs_50[[5]](10.5)
+
+minima <- 
+  tibble(
+    scenario = c("Scenario 1", "Scenario 2", "Scenario 3",
+                 "Scenario 4", "Scenario 5"),
+    listing_100_min = c(306, 267, 275, 244, 219),
+    nights_100_min = map2_dbl(listing_100_min, supply_funs_100[2:6], ~.y(.x)),
+    listing_75_min = c(224, 196, 200, 179, 160),
+    nights_75_min = map2_dbl(listing_75_min, supply_funs_75[2:6], ~.y(.x)),
+    listing_50_min = c(144, 128, 129, 117, 104),
+    nights_50_min = map2_dbl(listing_50_min, supply_funs_50[2:6], ~.y(.x))
+  )
+
+

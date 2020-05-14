@@ -17,6 +17,7 @@ library(readxl)
 plan(multiprocess)
 
 end_date <- as.Date("2019-12-31")
+key_date <- as.Date("2019-09-01")
 
 exchange_rate <- 
   map_dbl(0:11, ~{ 
@@ -86,6 +87,14 @@ wards <-
   mutate(wards, dwellings = .) %>% 
   select(ward, dwellings, geometry)
 
+ward_geometries <- 
+  wards %>% 
+  st_combine() %>% 
+  st_union() %>% 
+  st_cast("POLYGON") %>% 
+  st_union() %>% 
+  smoothr::fill_holes(400)
+
 zones <- 
   read_sf("data/shapefiles/Zoning.shp") %>% 
   st_set_crs(2954) %>% 
@@ -109,9 +118,9 @@ host <-
               "registration_numbers", "max_sleeping_capacity",
               "max_bedrooms", "property_types", "rental_unit_record",
               "most_recent_comment")) %>% 
-  select(parcel_number, STR, listings, address, unit_number, compliance_status,
-         identification_status, advertised, registration_numbers, 
-         property_types) %>% 
+  select(parcel_number, STR, listings, address, unit_number, last_posted,
+         compliance_status, identification_status, advertised, 
+         registration_numbers, property_types) %>% 
   mutate(advertised = if_else(advertised == "Yes", TRUE, FALSE),
          STR = if_else(STR == "Yes", TRUE, FALSE),
   ) %>% 
@@ -531,5 +540,6 @@ property <-
 ### Save files #################################################################
 
 save(city, daily, DAs, FREH, GH, host, ML_daily, ML_property, parcels,
-     property, registration, streets, wards, zones, end_date, exchange_rate, 
-     season_end, season_start, file = "data/charlottetown.Rdata")
+     property, registration, streets, ward_geometries, wards, zones, end_date, 
+     exchange_rate, key_date, season_end, season_start, 
+     file = "data/charlottetown.Rdata")
