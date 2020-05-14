@@ -184,12 +184,11 @@ LTM_property %>%
               as.numeric(length(property_ID[created <= key_date & scraped >= key_date])),
             `Annual revenue` = sum(revenue_LTM, na.rm = TRUE),
             `Rev. per listing` = `Annual revenue` / n(),
-            `Annual growth ratio` = 
-              as.numeric(
-                length(
-                  property_ID[housing & created <= end_date & scraped >= end_date]) /
-                  length(property_ID[housing & created <= end_date - years(1) &
-                                       scraped >= end_date - years(1)]))) %>%
+            `Annual growth ratio` = as.numeric(length(property_ID[housing == TRUE &
+                                                                    created <= key_date & scraped >= key_date]) /
+                                                 (length(property_ID[housing == TRUE &
+                                                                       created <= key_date - years(1) &
+                                                                       scraped >= key_date - years(1)])))) %>%
   mutate(
     `% of all listings` = `Number of listings` / sum(`Number of listings`),
     `% of annual revenue` = `Annual revenue` / sum(`Annual revenue`),
